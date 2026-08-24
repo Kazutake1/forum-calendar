@@ -1,10 +1,12 @@
 {
-  "status": "ok",
-  "updated_at": "2026-08-24T09:48:01+00:00",
-  "updated_at_jst": "2026/08/24 18:48",
+  "status": "fallback",
+  "updated_at": "2026-08-24T20:52:58+00:00",
+  "updated_at_jst": "2026/08/25 05:52",
+  "last_successful_source_at": "2026-08-24T09:48:01+00:00",
   "event_count": 77,
+  "schedule_replaced": false,
   "notes": [
-    "公式イベント案内: 新規構造化データなし",
+    "公式イベント案内: 構造化イベント0件",
     "催事予定表OCR失敗: 催事予定表PDFが見つかりません"
   ],
   "sources": [
