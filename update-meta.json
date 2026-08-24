@@ -1,6 +1,14 @@
 {
   "status": "ok",
-  "updated_at_jst": "初期データ",
+  "updated_at": "2026-08-24T09:48:01+00:00",
+  "updated_at_jst": "2026/08/24 18:48",
   "event_count": 77,
-  "source": "manual seed"
+  "notes": [
+    "公式イベント案内: 新規構造化データなし",
+    "催事予定表OCR失敗: 催事予定表PDFが見つかりません"
+  ],
+  "sources": [
+    "https://www.city.inazawa.aichi.jp/ica/0000004875.html",
+    "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+  ]
 }
