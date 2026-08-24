@@ -1,11 +1,3 @@
-# 文化フォーラム カレンダー PWA
-
-## 公開方法（GitHub Pages）
-1. GitHubで新しいリポジトリを作成
-2. このフォルダ内のファイルをすべてアップロード
-3. Settings → Pages → Deploy from a branch
-4. Branchを main / root にして保存
-5. 表示されたURLをiPhoneのSafariで開く
-6. 共有 → ホーム画面に追加
-
-注意: このアプリは非公式です。イベント情報は公式サイトで最終確認してください。
+文化フォーラム カレンダー Ver.2
+検索・一覧・詳細・公式リンク・会館情報を追加。
+GitHubの forum-calendar へ同名ファイルをアップロードして上書きしてください。

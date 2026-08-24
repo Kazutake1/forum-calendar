@@ -2,9 +2,10 @@
   "name": "名古屋文理大学文化フォーラム カレンダー",
   "short_name": "文化フォーラム",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
       "src": "icon-192.png",
