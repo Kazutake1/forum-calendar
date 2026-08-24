@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="文化フォーラム">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-180.png">
-<title>文化フォーラム カレンダー Ver.3</title>
+<title>文化フォーラム カレンダー Ver.4</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc}
 @media(prefers-color-scheme:dark){:root{--bg:#0c1017;--card:#151a22;--text:#f3f4f6;--muted:#98a2b3;--line:#2d3440;--accent:#60a5fa;--large:#3d2422;--large2:#fca5a5;--mid:#1e3049;--mid2:#93c5fd;--small:#173629;--small2:#86efac;--other:#2c2442;--other2:#c4b5fd}}
@@ -30,7 +30,7 @@ main{padding:14px 12px calc(env(safe-area-inset-bottom) + 30px);max-width:900px;
 </style>
 </head>
 <body>
-<header><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.3</div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
+<header><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.4</div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
 <main>
 <div class="search"><input id="search" type="search" placeholder="イベント名を検索"><button class="clear hidden" id="clearSearch" type="button">×</button></div>
 <div class="filters"><button class="chip active" data-f="all">すべて</button><button class="chip" data-f="大ホール">大ホール</button><button class="chip" data-f="中ホール">中ホール</button><button class="chip" data-f="小ホール">小ホール</button><button class="chip" data-f="その他">その他</button></div>
@@ -66,7 +66,11 @@ function linkInfo(e){
   return {url:(e.date.startsWith('2026-08')||e.date.startsWith('2026-09'))?URLS.schedule:URLS.events,
           label:(e.date.startsWith('2026-08')||e.date.startsWith('2026-09'))?'催事予定表で確認':'会館公式イベント案内'};
 }
-function detailsHTML(es){return es.length?es.map(e=>{const li=linkInfo(e);return `<div class="item"><div class="title">${e.title}</div><div class="meta">${badge(e.hall)}${e.time?`<br>時間：${e.time}`:''}${e.price?`<br>料金・入場：${e.price}`:''}</div><div class="actions"><a class="linkBtn" href="${li.url}" target="_blank" rel="noopener">${li.label}</a><a class="linkBtn" href="tel:0587245111">会館に電話</a></div></div>`}).join(''):'<div class="meta">該当する公開イベントはありません。</div>'}
+function googleUrl(e){
+  const q=encodeURIComponent(`${e.title} 名古屋文理大学文化フォーラム`);
+  return `https://www.google.com/search?q=${q}`;
+}
+function detailsHTML(es){return es.length?es.map(e=>{const li=linkInfo(e);return `<div class="item"><div class="title">${e.title}</div><div class="meta">${badge(e.hall)}${e.time?`<br>時間：${e.time}`:''}${e.price?`<br>料金・入場：${e.price}`:''}</div><div class="actions"><a class="linkBtn" href="${li.url}" target="_blank" rel="noopener">${li.label}</a><a class="linkBtn" href="${googleUrl(e)}" target="_blank" rel="noopener">Googleで検索</a><a class="linkBtn" href="tel:0587245111">会館に電話</a></div></div>`}).join(''):'<div class="meta">該当する公開イベントはありません。</div>'}
 function showDate(k){selected=k;const es=EVENTS.filter(e=>e.date===k&&matches(e));dt.textContent=dateJP(k);hint.textContent=`${es.length}件`;det.innerHTML=detailsHTML(es);renderCalendar()}
 function renderCalendar(){const y=view.getFullYear(),m=view.getMonth();ml.textContent=`${y}年 ${m+1}月`;cal.innerHTML=['日','月','火','水','木','金','土'].map(x=>`<div class="dow">${x}</div>`).join('');const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();for(let i=0;i<first;i++){const x=document.createElement('div');x.className='day blank';cal.appendChild(x)}for(let d=1;d<=days;d++){const k=key(y,m,d),es=EVENTS.filter(e=>e.date===k&&matches(e)),b=document.createElement('button');b.type='button';b.className='day';const n=new Date();if(n.getFullYear()===y&&n.getMonth()===m&&n.getDate()===d)b.classList.add('today');if(selected===k)b.classList.add('selected');b.innerHTML=`<div class="num">${d}</div>`+es.slice(0,3).map(e=>`<div class="ev ${cls(e.hall)}">${e.title}</div>`).join('')+(es.length>3?`<div class="ev">+${es.length-3}件</div>`:'');b.onclick=()=>showDate(k);cal.appendChild(b)}}
 function renderList(){const es=EVENTS.filter(matches).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));$('#resultCount').textContent=`${es.length}件`;$('#eventList').innerHTML=es.length?es.map(e=>`<div class="eventCard"><button type="button" data-date="${e.date}"><div class="dateLine">${dateJP(e.date)}${e.time?' ・ '+e.time:''}</div><div class="title">${e.title}</div><div class="meta">${badge(e.hall)}${e.price||''}</div></button></div>`).join(''):'<div class="eventCard"><div class="meta">条件に一致するイベントはありません。</div></div>';$$('#eventList button[data-date]').forEach(b=>b.onclick=()=>{const p=b.dataset.date.split('-').map(Number);view=new Date(p[0],p[1]-1,1);switchTab('calendar');showDate(b.dataset.date);setTimeout(()=>document.querySelector('.detail').scrollIntoView({behavior:'smooth',block:'start'}),50)})}
