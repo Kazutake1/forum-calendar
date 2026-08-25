@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="文化フォーラム">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-180.png">
-<title>文化フォーラム カレンダー Ver.9.2.3</title>
+<title>文化フォーラム カレンダー Ver.9.2.4</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fff7ed;--park2:#c2410c}
 html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fff7ed;--park2:#c2410c}
@@ -58,13 +58,13 @@ main{padding:14px 12px calc(env(safe-area-inset-bottom) + 30px);max-width:900px;
 </style>
 </head>
 <body>
-<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.2.3</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">自動</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
+<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.2.4</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">自動</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
 <main>
 <div class="search"><input id="search" type="search" placeholder="イベント名を検索"><button class="clear hidden" id="clearSearch" type="button">×</button></div>
 <div class="filtersWrap"><div class="filters"><button class="chip active" data-f="all">すべて</button><button class="chip" data-f="大ホール">大ホール</button><button class="chip" data-f="中ホール">中ホール</button><button class="chip" data-f="小ホール">小ホール</button><button class="chip" data-f="文化の丘公園">文化の丘公園</button><button class="chip" data-f="その他">その他</button></div></div>
 <section id="calendarView"><div class="calendarPane"><div class="monthbar"><button class="nav" id="prev">‹</button><div id="monthLabel"></div><button class="nav" id="next">›</button><button class="todayBtn" id="now">今月</button></div><div id="calendar" class="grid"></div></div><section class="detail detailPane"><h2 id="dateTitle">日付を選択してください</h2><div class="detailHint" id="detailHint">日付をタップすると催事の詳細を表示します。</div><div id="details"></div></section></section>
 <section id="listView" class="hidden"><div class="listHead"><h2>イベント一覧</h2><div id="resultCount"></div></div><div id="eventList"></div></section>
-<section class="info"><h3>会館情報</h3><p>〒492-8145 愛知県稲沢市正明寺三丁目114番地</p><p>電話：<a href="tel:0587245111">0587-24-5111</a>　開館：9:00〜21:30</p><div class="officialBtns"><a id="officialEventsLink" href="https://www.city.inazawa.aichi.jp/ica/0000002507.html" target="_blank" rel="noopener">公式イベント案内</a><a id="officialScheduleLink" href="https://www.city.inazawa.aichi.jp/ica/0000004875.html" target="_blank" rel="noopener">ホール催事予定表</a><a href="https://www.city.inazawa.aichi.jp/0000001174.html" target="_blank" rel="noopener">文化の丘公園</a></div><p>文化の丘公園：〒492-8167 稲沢市長束町沼100番地5</p></section>
+<section class="info"><h3>会館情報</h3><p>〒492-8145 愛知県稲沢市正明寺三丁目114番地</p><p>電話：<a href="tel:0587245111">0587-24-5111</a>　開館：9:00〜21:30</p><div class="officialBtns"><a id="officialEventsLink" href="https://www.city.inazawa.aichi.jp/ica/0000002507.html" target="_blank" rel="noopener">公式イベント案内</a><a id="officialScheduleLink" href="https://www.city.inazawa.aichi.jp/ica/0000004875.html" target="_blank" rel="noopener">ホール催事予定表</a><a href="https://www.city.inazawa.aichi.jp/0000001174.html" target="_blank" rel="noopener">文化の丘公園</a></div></section>
 <p class="note">非公式カレンダーです。催事は変更・追加・非掲載の場合があるため、来場前に公式情報をご確認ください。</p>
 </main>
 <script>
@@ -258,7 +258,7 @@ async function loadAutoData(){
 }
 loadAutoData();
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).finally(()=>navigator.serviceWorker.register('./sw.js?v=923',{updateViaCache:'none'}));
+  navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).finally(()=>navigator.serviceWorker.register('./sw.js?v=924',{updateViaCache:'none'}));
 }
 </script>
 </body></html>
