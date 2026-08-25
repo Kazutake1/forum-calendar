@@ -21,6 +21,10 @@ UA = "forum-calendar-auto-updater/2.0 (+GitHub Actions)"
 MAX_DOWNLOAD = 25 * 1024 * 1024
 HALLS = {"大ホール", "中ホール", "小ホール"}
 
+VENUE_CORRECTIONS = {
+    "食品衛生責任者養成講習会": "小ホール",
+}
+
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -65,6 +69,10 @@ def sanitize_event(e):
         "title": clean(e.get("title"), 240),
         "price": clean(e.get("price"), 100),
     }
+    corrected_hall = VENUE_CORRECTIONS.get(out["title"])
+    if corrected_hall:
+        out["hall"] = corrected_hall
+        e = {**e, "venues": [corrected_hall]}
     venues=e.get("venues")
     if isinstance(venues,list):
         out["venues"]=[clean(v,40) for v in venues if clean(v,40)]
