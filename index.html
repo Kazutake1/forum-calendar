@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="文化フォーラム">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<title>文化フォーラム カレンダー Ver.9.2.9</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fffbeb;--park2:#b45309}
+html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fffbeb;--park2:#b45309}
+html[data-theme="dark"]{--bg:#0c1017;--card:#151a22;--text:#f3f4f6;--muted:#98a2b3;--line:#2d3440;--accent:#60a5fa;--large:#3d2422;--large2:#fca5a5;--mid:#1e3049;--mid2:#93c5fd;--small:#173629;--small2:#86efac;--other:#2c2442;--other2:#c4b5fd;--park:#3b2f0b;--park2:#facc15}
+@media(prefers-color-scheme:dark){html:not([data-theme]){--bg:#0c1017;--card:#151a22;--text:#f3f4f6;--muted:#98a2b3;--line:#2d3440;--accent:#60a5fa;--large:#3d2422;--large2:#fca5a5;--mid:#1e3049;--mid2:#93c5fd;--small:#173629;--small2:#86efac;--other:#2c2442;--other2:#c4b5fd;--park:#3b2f0b;--park2:#facc15}}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",sans-serif}button,input,a{font:inherit}
+header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(16px);padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;border-bottom:1px solid var(--line)}
+h1{font-size:19px;line-height:1.25;margin:0}.updated{font-size:10px;color:var(--muted);margin-top:2px;opacity:.78}.updated.stale{color:#f59e0b;opacity:1;font-weight:700}.headRow{display:flex;align-items:flex-start;gap:10px}.headText{flex:1;min-width:0}.themeBtn{flex:0 0 auto;min-height:38px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:11px;padding:0 11px;font-size:12px;font-weight:700}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;background:var(--card);border:1px solid var(--line);padding:4px;border-radius:13px}.tab{border:0;background:transparent;color:var(--muted);min-height:38px;border-radius:9px;font-weight:700}.tab.active{background:var(--accent);color:white}
+main{padding:14px 12px calc(env(safe-area-inset-bottom) + 30px);max-width:900px;margin:auto}
+.search{position:relative;margin-bottom:10px}.search input{width:100%;min-height:46px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:0 44px 0 14px;font-size:16px}.clear{position:absolute;right:5px;top:3px;width:40px;height:40px;border:0;background:transparent;color:var(--muted);font-size:20px}
+.filtersWrap{position:relative}.filters{display:flex;gap:7px;overflow:auto;padding:0 28px 12px 0;scrollbar-width:none}.filters::-webkit-scrollbar{display:none}.filtersWrap:after{content:"";position:absolute;right:0;top:0;bottom:12px;width:28px;pointer-events:none;background:linear-gradient(90deg,transparent,var(--bg))}.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;min-height:40px;padding:0 14px}.chip.active{background:var(--accent);border-color:var(--accent);color:white}.chip .venueDot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;flex:none}
+.dotLarge{background:#b42318}.dotMid{background:#175cd3}.dotSmall{background:#027a48}.dotPark{background:#d97706}.dotOther{background:#5925dc}
+html[data-theme="dark"] .dotLarge{background:#fca5a5}html[data-theme="dark"] .dotMid{background:#93c5fd}html[data-theme="dark"] .dotSmall{background:#86efac}html[data-theme="dark"] .dotPark{background:#facc15}html[data-theme="dark"] .dotOther{background:#c4b5fd}
+@media(prefers-color-scheme:dark){html:not([data-theme]) .dotLarge{background:#fca5a5}html:not([data-theme]) .dotMid{background:#93c5fd}html:not([data-theme]) .dotSmall{background:#86efac}html:not([data-theme]) .dotPark{background:#facc15}html:not([data-theme]) .dotOther{background:#c4b5fd}}
+
+.monthbar{display:flex;align-items:center;gap:8px;margin:2px 0 10px}.nav{width:44px;height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px}#monthLabel{flex:1;text-align:center;font-weight:800;font-size:18px}.todayBtn{min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 12px}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;touch-action:pan-y;overscroll-behavior-x:contain}
+.dow{font-size:11px;text-align:center;color:var(--muted);padding:5px 0 7px}
+.day{min-width:0;min-height:96px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px;text-align:left;color:var(--text);overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch}
+.day.blank{visibility:hidden}
+.day.today{border:2px solid #f59e0b!important}
+.day.selected{box-shadow:inset 0 0 0 2px var(--accent)}
+.day.today.selected{border:2px solid #f59e0b!important;box-shadow:inset 0 0 0 2px var(--accent)}
+.num{height:24px;min-height:24px;display:flex;align-items:flex-start;justify-content:flex-start;width:100%;font-weight:800;font-size:13px;line-height:1;margin:0 0 2px;padding:1px 0 0}
+.ev{font-size:9px;line-height:1.25;padding:3px 4px;border-radius:5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.large{background:var(--large);color:var(--large2)}.mid{background:var(--mid);color:var(--mid2)}.small{background:var(--small);color:var(--small2)}.park{background:var(--park);color:var(--park2)}.other{background:var(--other);color:var(--other2)}
+.detail{margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px}.detail h2{font-size:18px;margin:0 0 5px}.detailHint{font-size:12px;color:var(--muted);margin-bottom:4px}.item{padding:14px 0;border-top:1px solid var(--line)}.item:first-of-type{border-top:0}.title{font-weight:800;font-size:15px;line-height:1.45}.meta{color:var(--muted);font-size:13px;margin-top:7px;line-height:1.6}.badge{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:700;margin-right:5px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.linkBtn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;min-height:40px;padding:0 11px;font-size:13px}
+.listHead{display:flex;justify-content:space-between;align-items:end;margin:2px 2px 8px}.listHead h2{font-size:18px;margin:0}#resultCount{font-size:12px;color:var(--muted)}.eventCard{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:14px;margin:8px 0}.dateLine{font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:700}.eventCard .title{font-size:15px}.eventCard button{width:100%;text-align:left;border:0;background:transparent;color:inherit;padding:0}
+.info{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:15px}.info h3{font-size:16px;margin:0 0 10px}.info p{font-size:13px;color:var(--muted);line-height:1.6;margin:5px 0}.officialBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.officialBtns a{text-align:center;text-decoration:none;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:11px 8px;color:var(--text);font-size:12px;font-weight:700}
+.note{color:var(--muted);font-size:11px;line-height:1.55;margin-top:12px}.hidden{display:none!important}
+@media(min-width:700px){.day{min-height:120px}.num{height:26px;min-height:26px;font-size:14px}.ev{font-size:11px}}
+
+@media (min-width:900px) and (orientation:landscape){
+  main{max-width:1220px;padding-left:18px;padding-right:18px}
+  #calendarView{display:grid;grid-template-columns:minmax(0,2.25fr) minmax(285px,.85fr);gap:16px;align-items:start}
+  .calendarPane{min-width:0;overflow:hidden}
+  .detailPane{margin-top:2px;position:sticky;top:calc(env(safe-area-inset-top) + 126px);max-height:calc(100vh - env(safe-area-inset-top) - 150px);overflow:auto}
+  .day{min-height:118px}
+  .ev{font-size:10px}
+  .detailPane h2{font-size:20px}
+  .detailPane .item{padding:13px 0}
+  .detailPane .actions{display:grid;grid-template-columns:1fr}
+  .detailPane .linkBtn{width:100%}
+}
+
+
+@media (prefers-reduced-motion: reduce){
+  .calendarPane{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.2.9</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">自動</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
+<main>
+<div class="search"><input id="search" type="search" placeholder="イベント名を検索"><button class="clear hidden" id="clearSearch" type="button">×</button></div>
+<div class="filtersWrap"><div class="filters"><button class="chip active" data-f="all">すべて</button><button class="chip" data-f="大ホール"><span class="venueDot dotLarge"></span>大ホール</button><button class="chip" data-f="中ホール"><span class="venueDot dotMid"></span>中ホール</button><button class="chip" data-f="小ホール"><span class="venueDot dotSmall"></span>小ホール</button><button class="chip" data-f="文化の丘公園"><span class="venueDot dotPark"></span>文化の丘公園</button><button class="chip" data-f="その他"><span class="venueDot dotOther"></span>その他</button></div></div>
+<section id="calendarView"><div class="calendarPane"><div class="monthbar"><button class="nav" id="prev">‹</button><div id="monthLabel"></div><button class="nav" id="next">›</button><button class="todayBtn" id="now">今月</button></div><div id="calendar" class="grid"></div></div><section class="detail detailPane"><h2 id="dateTitle">日付を選択してください</h2><div class="detailHint" id="detailHint">日付をタップすると催事の詳細を表示します。</div><div id="details"></div></section></section>
+<section id="listView" class="hidden"><div class="listHead"><h2>イベント一覧</h2><div id="resultCount"></div></div><div id="eventList"></div></section>
+<section class="info"><h3>会館情報</h3><p>〒492-8145 愛知県稲沢市正明寺三丁目114番地</p><p>電話：<a href="tel:0587245111">0587-24-5111</a>　開館：9:00〜21:30</p><div class="officialBtns"><a id="officialEventsLink" href="https://www.city.inazawa.aichi.jp/ica/0000002507.html" target="_blank" rel="noopener">公式イベント案内</a><a id="officialScheduleLink" href="https://www.city.inazawa.aichi.jp/ica/0000004875.html" target="_blank" rel="noopener">ホール催事予定表</a><a href="https://www.city.inazawa.aichi.jp/0000001174.html" target="_blank" rel="noopener">文化の丘公園</a></div></section>
+<p class="note">非公式カレンダーです。催事は変更・追加・非掲載の場合があるため、来場前に公式情報をご確認ください。</p>
+</main>
+<script>
+const FALLBACK_EVENTS=[{"date": "2026-08-01", "hall": "中ホール", "time": "", "title": "Camellia Ballet NM 第2回発表会", "price": "1,000円"}, {"date": "2026-08-03", "hall": "小ホール", "time": "", "title": "渡部花恋バレエ・アカデミー発表会リハーサル", "price": "関係者"}, {"date": "2026-08-05", "hall": "大ホール", "time": "13:00〜19:00", "title": "全日本高校ストリートダンスクライマックス2026 中部予選大会", "price": "3,000円"}, {"date": "2026-08-05", "hall": "小ホール", "time": "13:30〜15:00", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-08-07", "hall": "大ホール", "time": "15:00〜", "title": "第66回愛知県合唱コンクール 小学生部門", "price": "無料"}, {"date": "2026-08-08", "hall": "大ホール", "time": "10:30〜", "title": "第66回愛知県合唱コンクール 中学生・大学ユースの部", "price": "1,000円ほか"}, {"date": "2026-08-09", "hall": "大ホール", "time": "10:30〜", "title": "第66回愛知県合唱コンクール 高校・室内・同声混声合唱の部", "price": "1,000円ほか"}, {"date": "2026-08-11", "hall": "中ホール", "time": "16:30〜", "title": "糸尾和栄バレエスタジオ発表会2026", "price": "1,000円"}, {"date": "2026-08-11", "hall": "小ホール", "time": "10:00〜11:30", "title": "いなざわ戦国の響き チャンバラ合戦", "price": "無料"}, {"date": "2026-08-11", "hall": "中ホール", "time": "13:00〜", "title": "いなざわ戦国の響き コンサート＆講演会", "price": "要事前申込"}, {"date": "2026-08-12", "hall": "小ホール", "time": "10:00〜11:30", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-08-14", "hall": "小ホール", "time": "15:00〜17:00", "title": "Live! DeLa DAGANE Vol.15", "price": "3,500円ほか"}, {"date": "2026-08-15", "hall": "大ホール", "time": "17:00〜", "title": "ミュージカル「AGATHA（アガサ）」", "price": "13,800円ほか"}, {"date": "2026-08-15", "hall": "中ホール", "time": "15:00〜17:00", "title": "アニソンJACK!", "price": "無料"}, {"date": "2026-08-16", "hall": "大ホール", "time": "13:00〜", "title": "ミュージカル「AGATHA（アガサ）」", "price": "13,800円ほか"}, {"date": "2026-08-16", "hall": "中ホール", "time": "13:00〜", "title": "キラレッセ音楽会", "price": "1,000円"}, {"date": "2026-08-16", "hall": "中ホール", "time": "17:00〜", "title": "Ballet Plaisir 第10回発表会", "price": "要整理券"}, {"date": "2026-08-17", "hall": "小ホール", "time": "10:00〜11:30", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-08-17", "hall": "中ホール", "time": "16:30〜", "title": "Amy Ballet 発表会", "price": "要整理券"}, {"date": "2026-08-18", "hall": "大ホール", "time": "未定", "title": "第93回NHK全国学校音楽コンクール 愛知県コンクール 高等学校の部", "price": "無料"}, {"date": "2026-08-19", "hall": "大ホール", "time": "未定", "title": "第93回NHK全国学校音楽コンクール 愛知県コンクール 中学校の部", "price": "無料"}, {"date": "2026-08-20", "hall": "大ホール", "time": "未定", "title": "第93回NHK全国学校音楽コンクール 愛知県コンクール 小学校の部", "price": "無料"}, {"date": "2026-08-21", "hall": "大ホール", "time": "18:30〜", "title": "OKAMOTO’S 90’S TOKYO BOYS IN HALL “Future Eve”", "price": "6,600円"}, {"date": "2026-08-21", "hall": "小ホール", "time": "10:00〜11:30", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-08-21", "hall": "中ホール", "time": "9:15〜16:00", "title": "楽しいオペラを創ろう！ ANETあそび塾「ジャックと豆の木」", "price": "1,000円"}, {"date": "2026-08-22", "hall": "小ホール", "time": "14:30〜", "title": "第10回低音楽器サマーバンドフェスティバル", "price": "無料"}, {"date": "2026-08-25", "hall": "小ホール", "time": "13:30〜15:00", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-08-26", "hall": "小ホール", "time": "10:00〜11:20", "title": "童謡・唱歌を中心に懐かしい歌をうたいましょう！（お茶又はお水付）", "price": "1,000円"}, {"date": "2026-08-26", "hall": "中ホール", "time": "", "title": "令和8年度稲沢市戦没者追悼式", "price": "関係者"}, {"date": "2026-08-29", "hall": "大ホール", "time": "11:50〜20:00", "title": "APF VISIONARY CUP 2026", "price": "6,000円"}, {"date": "2026-08-29", "hall": "小ホール", "time": "19:00〜", "title": "月夜の音楽会 vol.31", "price": "1,500円"}, {"date": "2026-08-29", "hall": "中ホール", "time": "14:00〜", "title": "リリー・ミューズが贈る ココロ踊るみんなの楽しい音楽会2026 in 稲沢", "price": "800円ほか"}, {"date": "2026-08-30", "hall": "小ホール", "time": "", "title": "ピアノ発表会", "price": "関係者"}, {"date": "2026-09-02", "hall": "小ホール", "time": "10:00〜11:30", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-09-02", "hall": "小ホール", "time": "", "title": "食品衛生責任者養成講習会", "price": "関係者"}, {"date": "2026-09-04", "hall": "小ホール", "time": "10:00〜11:30", "title": "成人大学後期講座", "price": "要事前申込"}, {"date": "2026-09-04", "hall": "中ホール", "time": "", "title": "ライオンズクラブ国際協会334-A地区 ガバナー公式訪問例会", "price": "関係者"}, {"date": "2026-09-08", "hall": "小ホール", "time": "13:30〜15:00", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-09-11", "hall": "小ホール", "time": "10:00〜11:30", "title": "成人大学後期講座", "price": "要事前申込"}, {"date": "2026-09-12", "hall": "大ホール", "time": "未定", "title": "第93回NHK全国学校音楽コンクール 東海北陸ブロックコンクール 小学校・高等学校の部", "price": "無料"}, {"date": "2026-09-13", "hall": "大ホール", "time": "未定", "title": "第93回NHK全国学校音楽コンクール 東海北陸ブロックコンクール 中学校の部", "price": "無料"}, {"date": "2026-09-15", "hall": "小ホール", "time": "10:00〜11:30", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-09-17", "hall": "小ホール", "time": "10:00〜10:30", "title": "Morning Classic Vol.2 ～チェロ四重奏～", "price": "1,000円"}, {"date": "2026-09-18", "hall": "大ホール", "time": "12:00〜13:00", "title": "セントラル愛知交響楽団 公開リハーサル Part2", "price": "無料"}, {"date": "2026-09-18", "hall": "小ホール", "time": "10:30〜11:20", "title": "セントラル愛知交響楽団 公開講座 Part2", "price": "無料"}, {"date": "2026-09-19", "hall": "大ホール", "time": "14:00〜", "title": "高齢者のつどい 松阪ゆうき歌謡ショー・舞＆歌スペシャルステージ", "price": "要事前申込"}, {"date": "2026-09-19", "hall": "小ホール", "time": "", "title": "穂井ピアノ教室 ピアノ発表会", "price": "関係者"}, {"date": "2026-09-20", "hall": "中ホール", "time": "16:00〜19:00", "title": "PR STUDIO 発表会 2026", "price": "1,000円"}, {"date": "2026-09-22", "hall": "小ホール", "time": "", "title": "2026年度 セイハ英語学院スピーチコンテスト", "price": "関係者"}, {"date": "2026-09-22", "hall": "中ホール", "time": "", "title": "第45回 琴城流大正琴稲沢会発表会", "price": "関係者"}, {"date": "2026-09-23", "hall": "大ホール", "time": "15:00〜16:50", "title": "いなざわ演劇鑑賞会 例会「素劇 楢山節考」", "price": "会員制"}, {"date": "2026-09-23", "hall": "小ホール", "time": "", "title": "Magical Sounds Festival オーディション", "price": "関係者"}, {"date": "2026-09-23", "hall": "中ホール", "time": "13:00〜", "title": "ハルバレ音楽祭", "price": "2,500円ほか"}, {"date": "2026-09-24", "hall": "小ホール", "time": "13:30〜15:00", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-09-25", "hall": "小ホール", "time": "10:00〜11:30", "title": "成人大学後期講座", "price": "要事前申込"}, {"date": "2026-09-25", "hall": "中ホール", "time": "19:00〜", "title": "音楽家の集い Vol.112「後藤浩二クインテット スペシャルジャズライブ」", "price": "1,000円"}, {"date": "2026-09-26", "hall": "小ホール", "time": "", "title": "西部音楽教室発表会", "price": "関係者"}, {"date": "2026-09-27", "hall": "大ホール", "time": "14:00〜16:05", "title": "2026年 落語会", "price": "無料"}, {"date": "2026-09-29", "hall": "大ホール", "time": "13:00〜", "title": "神川たかし＆長山洋子 ～ふたりのビッグショー～", "price": "6,800円"}, {"date": "2026-09-29", "hall": "小ホール", "time": "10:00〜11:30", "title": "なかよし（BANストレッチサークル）", "price": "見学可"}, {"date": "2026-09-30", "hall": "小ホール", "time": "10:00〜11:20", "title": "童謡・唱歌を中心に懐かしい歌をうたいましょう！（お茶又はお水付）", "price": "1,000円"}, {"date": "2026-10-03", "hall": "大ホール", "time": "15:00〜", "title": "セントラル愛知交響楽団 第16回名曲コンサート “The Musical”", "price": "S席7,000円ほか"}, {"date": "2026-10-24", "hall": "大ホール", "time": "9:30〜20:30", "title": "ピアノ体験会 ～スタインウェイがつなぐ街の劇場～", "price": "1枠60分 2,000円"}, {"date": "2026-10-31", "hall": "大ホール", "time": "13:00〜 / 17:30〜", "title": "M&Oplaysプロデュース 舞台「ブランク」", "price": "9,000円"}, {"date": "2026-11-01", "hall": "大ホール", "time": "17:00〜", "title": "KAZUYOSHI SAITO LIVE TOUR 2026 “日常 Days”", "price": "8,800円・完売"}, {"date": "2026-11-05", "hall": "小ホール", "time": "", "title": "Morning Classic Vol.3", "price": "1,000円"}, {"date": "2026-11-06", "hall": "小ホール", "time": "10:30〜11:20", "title": "セントラル愛知交響楽団 公開講座 Part3", "price": "無料"}, {"date": "2026-11-06", "hall": "大ホール", "time": "12:00〜13:00", "title": "セントラル愛知交響楽団 公開リハーサル Part3", "price": "無料"}, {"date": "2026-11-15", "hall": "中ホール", "time": "16:00〜", "title": "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」", "price": "1,000円"}, {"date": "2026-12-13", "hall": "大ホール", "time": "16:30〜", "title": "劇団四季「コーラスライン」", "price": "S席11,000円・A席9,000円"}, {"date": "2027-01-10", "hall": "中ホール", "time": "14:00〜", "title": "音楽家の集い Vol.114 尾髙詩音里＆新庄龍馬 デュオリサイタル", "price": "1,000円"}, {"date": "2027-01-23", "hall": "小ホール", "time": "", "title": "春風亭朝枝独演会", "price": "3,000円"}, {"date": "2027-02-27", "hall": "中ホール", "time": "14:00〜", "title": "音楽家の集い Vol.115 パクスコーラス モーツァルト／レクイエム", "price": "1,000円"}, {"date": "2027-03-18", "hall": "小ホール", "time": "", "title": "Morning Classic Vol.4", "price": "1,000円"}, {"date": "2027-03-19", "hall": "小ホール", "time": "10:30〜11:20", "title": "セントラル愛知交響楽団 公開講座 Part4", "price": "無料"}, {"date": "2027-03-19", "hall": "大ホール", "time": "12:00〜13:00", "title": "セントラル愛知交響楽団 公開リハーサル Part4", "price": "無料"}, {"date": "2027-03-22", "hall": "大ホール", "time": "", "title": "ワンコインコンサートスペシャル 音楽三昧「ドイツ編」", "price": "1,000円"}];
+let EVENTS=[...FALLBACK_EVENTS];
+let URLS={events:"https://www.city.inazawa.aichi.jp/ica/0000002507.html",schedule:"https://www.city.inazawa.aichi.jp/ica/0000004875.html"};
+let view=new Date(2026,7,1),filter='all',query='',selected=null;
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const cal=$('#calendar'),ml=$('#monthLabel'),dt=$('#dateTitle'),hint=$('#detailHint'),det=$('#details'),search=$('#search'),clear=$('#clearSearch');
+const key=(y,m,d)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const cls=h=>h==='大ホール'?'large':h==='中ホール'?'mid':h==='小ホール'?'small':h==='文化の丘公園'?'park':'other';
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const venuesOf=e=>Array.isArray(e.venues)&&e.venues.length?e.venues:[e.hall].filter(Boolean);
+const badges=e=>venuesOf(e).map(h=>`<span class="badge ${cls(h)}">${esc(h)}</span>`).join('');
+const primaryVenue=e=>venuesOf(e)[0]||'その他';
+function matches(e){const q=query.trim().toLowerCase(),vs=venuesOf(e);return(filter==='all'||vs.includes(filter))&&(!q||(`${e.title} ${vs.join(' ')} ${e.time||''} ${e.price||''}`).toLowerCase().includes(q))}
+function dateJP(s){const [y,m,d]=s.split('-').map(Number);return `${y}年${m}月${d}日`}
+const DIRECT_LINKS=[
+  {test:t=>t.includes('APF VISIONARY CUP 2026'),url:'https://apf.fitness/contest/apf%E5%90%8D%E5%8F%A4%E5%B1%8B%E5%A4%A7%E4%BC%9A/',label:'APF公式大会ページ'},
+  {test:t=>t.includes('全日本高校ストリートダンスクライマックス'),url:'https://www.dancedelight.net/archive/583/',label:'イベント公式ページ'},
+  {test:t=>t.includes('第66回愛知県合唱コンクール'),url:'https://achorus.org/schedule2026.html',label:'主催者公式ページ'},
+  {test:t=>t.includes('いなざわ戦国の響き'),url:'https://www.city.inazawa.aichi.jp/0000005741.html',label:'イベント公式ページ'},
+  {test:t=>t.includes('ミュージカル「AGATHA'),url:'https://www.meijiza.co.jp/others/2026_07_agatha/',label:'公演公式ページ'},
+  {test:t=>t.includes('第93回NHK全国学校音楽コンクール'),url:'https://www.nhk.or.jp/ncon/',label:'Nコン公式サイト'},
+  {test:t=>t.includes('KAZUYOSHI SAITO'),url:'https://www.kazuyoshi-saito.com/schedule?cal=202611',label:'アーティスト公式ページ'},
+  {test:t=>t.includes('劇団四季「コーラスライン'),url:'https://www.shiki.jp/applause/chorusline/special/map/',label:'劇団四季 公式ページ'},
+  {test:t=>t.includes('セントラル愛知交響楽団')||t.includes('Morning Classic')||t.includes('音楽家の集い')||t.includes('リリー・ミューズ')||t.includes('ピアノ体験会')||t.includes('M&Oplays')||t.includes('音楽三昧'),url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',label:'会館公式イベント案内'}
+];
+function linkInfo(e){
+  if(e.official_url)return {url:e.official_url,label:'イベント公式ページ'};
+  const x=DIRECT_LINKS.find(x=>x.test(e.title));
+  if(x)return x;
+  return {url:(e.date.startsWith('2026-08')||e.date.startsWith('2026-09'))?URLS.schedule:URLS.events,
+          label:(e.date.startsWith('2026-08')||e.date.startsWith('2026-09'))?'催事予定表で確認':'会館公式イベント案内'};
+}
+function googleUrl(e){
+  const q=encodeURIComponent(`${e.title} ${venuesOf(e).join(' ')} 稲沢`);
+  return `https://www.google.com/search?q=${q}`;
+}
+function detailsHTML(es){return es.length?es.map(e=>{const li=linkInfo(e),vs=venuesOf(e),hasHall=vs.some(v=>['大ホール','中ホール','小ホール'].includes(v));return `<div class="item"><div class="title">${esc(e.title)}</div><div class="meta">${badges(e)}${e.time?`<br>時間：${esc(e.time)}`:''}${e.price?`<br>料金・入場：${esc(e.price)}`:''}</div><div class="actions"><a class="linkBtn" href="${li.url}" target="_blank" rel="noopener">${li.label}</a><a class="linkBtn" href="${googleUrl(e)}" target="_blank" rel="noopener">Googleで検索</a></div></div>`}).join(''):'<div class="meta">該当する公開イベントはありません。</div>'}
+function showDate(k){selected=k;const es=EVENTS.filter(e=>e.date===k&&matches(e));dt.textContent=dateJP(k);hint.textContent=`${es.length}件`;det.innerHTML=detailsHTML(es);renderCalendar()}
+function renderCalendar(){const y=view.getFullYear(),m=view.getMonth();ml.textContent=`${y}年 ${m+1}月`;cal.innerHTML=['日','月','火','水','木','金','土'].map(x=>`<div class="dow">${x}</div>`).join('');const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();for(let i=0;i<first;i++){const x=document.createElement('div');x.className='day blank';cal.appendChild(x)}for(let d=1;d<=days;d++){const k=key(y,m,d),es=EVENTS.filter(e=>e.date===k&&matches(e)),b=document.createElement('button');b.type='button';b.className='day';const n=new Date();if(n.getFullYear()===y&&n.getMonth()===m&&n.getDate()===d)b.classList.add('today');if(selected===k)b.classList.add('selected');b.innerHTML=`<div class="num">${d}</div>`+es.slice(0,3).map(e=>`<div class="ev ${cls(primaryVenue(e))}">${esc(e.title)}</div>`).join('')+(es.length>3?`<div class="ev">+${es.length-3}件</div>`:'');b.onclick=()=>showDate(k);cal.appendChild(b)}}
+function renderList(){const es=EVENTS.filter(matches).sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time));$('#resultCount').textContent=`${es.length}件`;$('#eventList').innerHTML=es.length?es.map(e=>`<div class="eventCard"><button type="button" data-date="${e.date}"><div class="dateLine">${dateJP(e.date)}${e.time?' ・ '+e.time:''}</div><div class="title">${esc(e.title)}</div><div class="meta">${badges(e)}${esc(e.price||'')}</div></button></div>`).join(''):'<div class="eventCard"><div class="meta">条件に一致するイベントはありません。</div></div>';$$('#eventList button[data-date]').forEach(b=>b.onclick=()=>{const p=b.dataset.date.split('-').map(Number);view=new Date(p[0],p[1]-1,1);switchTab('calendar');showDate(b.dataset.date);if(!(window.matchMedia&&window.matchMedia('(min-width:900px) and (orientation:landscape)').matches))setTimeout(()=>document.querySelector('.detail').scrollIntoView({behavior:'smooth',block:'start'}),50)})}
+function refresh(){renderCalendar();renderList();if(selected){const es=EVENTS.filter(e=>e.date===selected&&matches(e));hint.textContent=`${es.length}件`;det.innerHTML=detailsHTML(es)}}
+function switchTab(name){$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$('#calendarView').classList.toggle('hidden',name!=='calendar');$('#listView').classList.toggle('hidden',name!=='list');if(name==='list')renderList()}
+$('#prev').onclick=()=>moveMonth(-1);
+$('#next').onclick=()=>moveMonth(1);
+const calendarEl=$('#calendar');
+let swipeStart=null,swipeId=null;
+let monthAnimating=false;
+async function moveMonth(delta){
+  if(monthAnimating)return;
+  monthAnimating=true;
+
+  const pane=document.querySelector('.calendarPane')||calendarEl;
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if(reduce||!pane||!pane.animate){
+    view=new Date(view.getFullYear(),view.getMonth()+delta,1);
+    selected=null;
+    renderCalendar();
+    monthAnimating=false;
+    return;
+  }
+
+  const outX=delta>0?'-14%':'14%';
+  const inX=delta>0?'14%':'-14%';
+
+  try{
+    const outAnim=pane.animate(
+      [
+        {transform:'translateX(0)',opacity:1},
+        {transform:`translateX(${outX})`,opacity:.18}
+      ],
+      {duration:150,easing:'cubic-bezier(.4,0,.6,1)',fill:'forwards'}
+    );
+    await outAnim.finished;
+
+    view=new Date(view.getFullYear(),view.getMonth()+delta,1);
+    selected=null;
+    renderCalendar();
+
+    outAnim.cancel();
+
+    const inAnim=pane.animate(
+      [
+        {transform:`translateX(${inX})`,opacity:.18},
+        {transform:'translateX(0)',opacity:1}
+      ],
+      {duration:210,easing:'cubic-bezier(.22,.61,.36,1)',fill:'both'}
+    );
+    await inAnim.finished;
+  }catch(e){
+    view=new Date(view.getFullYear(),view.getMonth()+delta,1);
+    selected=null;
+    renderCalendar();
+  }finally{
+    monthAnimating=false;
+  }
+}
+if(calendarEl&&window.PointerEvent){
+  calendarEl.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    swipeId=e.pointerId;swipeStart={x:e.clientX,y:e.clientY,t:Date.now()};
+  },{passive:true});
+  calendarEl.addEventListener('pointerup',e=>{
+    if(!swipeStart||e.pointerId!==swipeId)return;
+    const dx=e.clientX-swipeStart.x,dy=e.clientY-swipeStart.y,dt=Date.now()-swipeStart.t;
+    swipeStart=null;swipeId=null;
+    if(dt>900||Math.abs(dx)<60||Math.abs(dx)<Math.abs(dy)*1.35)return;
+    moveMonth(dx<0?1:-1);
+  },{passive:true});
+  calendarEl.addEventListener('pointercancel',()=>{swipeStart=null;swipeId=null},{passive:true});
+}
+let wheelLock=false;
+if(calendarEl)calendarEl.addEventListener('wheel',e=>{
+  if(wheelLock||monthAnimating||Math.abs(e.deltaX)<35||Math.abs(e.deltaX)<Math.abs(e.deltaY))return;
+  wheelLock=true;moveMonth(e.deltaX>0?1:-1);
+  setTimeout(()=>wheelLock=false,450);
+},{passive:true});
+$('#now').onclick=()=>{const n=new Date();view=new Date(n.getFullYear(),n.getMonth(),1);selected=key(n.getFullYear(),n.getMonth(),n.getDate());refresh()};
+$$('.chip').forEach(b=>b.onclick=()=>{$$('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');filter=b.dataset.f;refresh()});
+$$('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+search.oninput=()=>{query=search.value;clear.classList.toggle('hidden',!query);refresh();if(query)switchTab('list')};
+clear.onclick=()=>{search.value='';query='';clear.classList.add('hidden');refresh();search.focus()};
+
+const themeBtn=document.querySelector('#themeToggle');
+let themeMode='system';
+try{themeMode=localStorage.getItem('forum-theme')||'system'}catch(e){}
+function applyTheme(mode){
+  if(mode==='system')document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme',mode);
+  if(themeBtn){
+    themeBtn.dataset.mode=mode;
+    themeBtn.textContent=mode==='system'?'自動':mode==='light'?'ライト':'ダーク';
+  }
+}
+applyTheme(themeMode);
+if(themeBtn)themeBtn.onclick=()=>{
+  const order=['system','light','dark'];
+  const cur=themeBtn.dataset.mode||'system';
+  themeMode=order[(order.indexOf(cur)+1)%order.length];
+  try{localStorage.setItem('forum-theme',themeMode)}catch(e){}
+  applyTheme(themeMode);
+};
+
+async function loadAutoData(){
+  try{
+    const [er,mr]=await Promise.all([
+      fetch('./events.json?ts='+Date.now(),{cache:'no-store'}),
+      fetch('./update-meta.json?ts='+Date.now(),{cache:'no-store'})
+    ]);
+    if(er.ok){
+      const data=await er.json();
+      if(Array.isArray(data)&&data.length){
+        EVENTS=data;
+      }
+    }
+    if(mr.ok){
+      const meta=await mr.json();
+      const el=document.querySelector('#autoUpdated');
+      if(el){
+        const when=meta.updated_at_jst||meta.updated_at||'';
+        const count=meta.event_count||EVENTS.length;
+        if(meta.resolved_urls){
+          if(meta.resolved_urls.events)URLS.events=meta.resolved_urls.events;
+          if(meta.resolved_urls.schedule)URLS.schedule=meta.resolved_urls.schedule;
+          const oe=document.querySelector('#officialEventsLink');
+          const os=document.querySelector('#officialScheduleLink');
+          if(oe)oe.href=URLS.events;
+          if(os)os.href=URLS.schedule;
+        }
+        const note=meta.status==='ok'?'自動更新':'前回データを使用';
+        let stale=false;
+        const successAt=meta.last_successful_forum_at||meta.last_successful_source_at||meta.updated_at||'';
+        if(successAt){
+          const t=Date.parse(successAt);
+          stale=!Number.isNaN(t)&&(Date.now()-t)>48*60*60*1000;
+        }
+        el.classList.toggle('stale',stale);
+        el.textContent=stale?`⚠ 文化フォーラム公式情報の正常取得が48時間以上ありません ・ ${when} ・ ${count}件`:`${note}：${when} ・ ${count}件`;
+      }
+    }
+  }catch(err){
+    const el=document.querySelector('#autoUpdated');
+    if(el)el.textContent='自動更新データを取得できないため保存済みデータを表示';
+  }
+  renderCalendar();renderList();
+  const now=new Date();
+  view=new Date(now.getFullYear(),now.getMonth(),1);
+  showDate(key(now.getFullYear(),now.getMonth(),now.getDate()));
+}
+loadAutoData();
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).finally(()=>navigator.serviceWorker.register('./sw.js?v=929',{updateViaCache:'none'}));
+}
+</script>
+</body></html>
