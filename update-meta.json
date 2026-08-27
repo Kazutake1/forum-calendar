@@ -1,18 +1,18 @@
 {
-  "status": "ok",
-  "updated_at": "2026-08-27T08:07:39+00:00",
-  "updated_at_jst": "2026/08/27 17:08",
-  "last_successful_source_at": "2026-08-27T08:07:39+00:00",
+  "status": "partial",
+  "updated_at": "2026-08-27T08:34:08+00:00",
+  "updated_at_jst": "2026/08/27 17:34",
+  "last_successful_source_at": "2026-08-27T08:34:08+00:00",
   "last_successful_forum_at": "2026-08-27T08:07:39+00:00",
-  "last_successful_park_at": "2026-08-27T08:07:39+00:00",
+  "last_successful_park_at": "2026-08-27T08:34:08+00:00",
   "event_count": 78,
   "schedule_replaced": false,
   "notes": [
-    "イベント案内URL: fixed https://www.city.inazawa.aichi.jp/ica/0000002507.html",
-    "催事予定表URL: fixed https://www.city.inazawa.aichi.jp/ica/0000004875.html",
-    "公式イベント案内 1件",
-    "催事予定表OCR 信頼度不足 0件 / しきい値36 のため既存月データ維持",
-    "文化の丘公園（市公式） 0件 / カレンダー13ページ確認",
+    "イベント案内URL探索失敗: eventsページの自動探索に失敗しました",
+    "催事予定表URL探索失敗: scheduleページの自動探索に失敗しました",
+    "公式イベント案内: 構造化イベント0件",
+    "催事予定表OCR失敗: 催事予定表PDFが見つかりません",
+    "文化の丘公園（市公式） 0件 / カレンダー12ページ確認",
     "文化の丘公園（観光協会） 0件 / 3ページ確認"
   ],
   "resolved_urls": {

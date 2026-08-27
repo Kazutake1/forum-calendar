@@ -293,11 +293,12 @@
     "date": "2026-08-29",
     "hall": "大ホール",
     "time": "11:50〜20:00",
-    "title": "APF VISIONARY TRYOUT CUP 2026",
+    "title": "APF VISIONARY CUP 2026",
     "price": "6,000円",
     "venues": [
       "大ホール"
-    ]
+    ],
+    "official_url": "https://apf.fitness/contest/apf%E5%90%8D%E5%8F%A4%E5%B1%8B%E5%A4%A7%E4%BC%9A/"
   },
   {
     "date": "2026-08-29",
