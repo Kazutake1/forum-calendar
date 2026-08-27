@@ -761,6 +761,18 @@
   },
   {
     "date": "2027-03-22",
+    "hall": "その他",
+    "time": "",
+    "title": "「音楽三昧」合唱団員募集（申込受付中）",
+    "price": "",
+    "venues": [
+      "その他"
+    ],
+    "source": "event_guide",
+    "official_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+  },
+  {
+    "date": "2027-03-22",
     "hall": "大ホール",
     "time": "",
     "title": "ワンコインコンサートスペシャル 音楽三昧「ドイツ編」",
