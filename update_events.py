@@ -49,7 +49,12 @@ def get(url):
     u = urlparse(url)
     if u.scheme != "https" or u.hostname not in ALLOWED_HOSTS:
         raise RuntimeError(f"許可されていない取得先: {url}")
-    r = requests.get(url, headers={"User-Agent": UA}, timeout=30, stream=True)
+    headers = {
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8",
+        "Accept-Language": "ja,en-US;q=0.8,en;q=0.6",
+    }
+    r = requests.get(url, headers=headers, timeout=30, stream=True, allow_redirects=True)
     r.raise_for_status()
     data = bytearray()
     for chunk in r.iter_content(65536):
@@ -59,6 +64,9 @@ def get(url):
                 raise RuntimeError("取得ファイルが大きすぎます")
     r._content = bytes(data)
     r._content_consumed = True
+    ctype = (r.headers.get("Content-Type") or "").lower()
+    if "text/html" in ctype or "text/plain" in ctype:
+        r.encoding = "utf-8"
     return r
 
 def load_json(path, default):
@@ -137,16 +145,26 @@ def ym(e): return e.get("date", "")[:7]
 def page_is_valid(url, kind):
     try:
         r=get(url)
-        soup=BeautifulSoup(r.text,"html.parser")
+        soup=BeautifulSoup(r.content,"html.parser")
         h1=clean(soup.find("h1").get_text(" ",strip=True) if soup.find("h1") else "", 200)
         title=clean(soup.title.get_text(" ",strip=True) if soup.title else "", 200)
-        text=f"{h1} {title}"
+        body=clean(soup.get_text(" ",strip=True), 6000)
+        text=f"{h1} {title} {body}"
+        path=urlparse(url).path
         if kind=="schedule":
-            return "ホール催事予定表" in text
-        if kind=="events":
-            if ("コンサート" in text and "イベント" in text):
+            if "ホール催事予定表" in text:
                 return True
-            # Structural fallback: consolidated event guide contains multiple event sections.
+            if path.endswith("/ica/0000004875.html"):
+                return any(
+                    urlparse(urljoin(url,a.get("href",""))).path.lower().endswith(".pdf")
+                    for a in soup.find_all("a",href=True)
+                )
+            return False
+        if kind=="events":
+            if "コンサート・イベントのご案内" in text or ("コンサート" in text and "イベント" in text):
+                return True
+            if path.endswith("/ica/0000002507.html"):
+                return len(soup.find_all(["h2","h3","h4"])) >= 3
             return len(soup.find_all(["h2","h3"], string=re.compile("財団|開催日"))) >= 2
     except Exception:
         return False
@@ -173,7 +191,7 @@ def discover_page(kind, preferred):
     for hub in (ICA_HOME, SITE_MAP):
         try:
             r=get(hub)
-            soup=BeautifulSoup(r.text,"html.parser")
+            soup=BeautifulSoup(r.content,"html.parser")
             for a in soup.find_all("a", href=True):
                 score=candidate_score(a.get_text(" ",strip=True), kind)
                 if not score: continue
@@ -194,16 +212,33 @@ def discover_page(kind, preferred):
 
 def find_schedule_pdf(schedule_page):
     r = get(schedule_page)
-    soup = BeautifulSoup(r.text, "html.parser")
-    links=[]
+    soup = BeautifulSoup(r.content, "html.parser")
+    preferred=[]
+    fallback=[]
     for a in soup.find_all("a", href=True):
-        text=clean(a.get_text(" ", strip=True))
+        label=clean(a.get_text(" ", strip=True))
         href=urljoin(schedule_page, a["href"])
         u=urlparse(href)
-        if u.scheme=="https" and u.hostname in ALLOWED_HOSTS and u.path.lower().endswith(".pdf") and ("催事予定表" in text or "イベント" in text):
-            links.append((text, href))
-    if not links: raise RuntimeError("催事予定表PDFが見つかりません")
-    return links[0]
+        if u.scheme!="https" or u.hostname not in ALLOWED_HOSTS or not u.path.lower().endswith(".pdf"):
+            continue
+        item=(label or Path(u.path).name, href)
+        fallback.append(item)
+        if (
+            "催事予定表" in label
+            or "ホール" in label
+            or re.search(r"/20\d{4}-\d{2}\.pdf$",u.path,re.I)
+            or re.search(r"20\d{6}-\d{2}",u.path,re.I)
+        ):
+            preferred.append(item)
+    if preferred:
+        return preferred[0]
+    if urlparse(schedule_page).path.endswith("/ica/0000004875.html") and len(fallback)==1:
+        return fallback[0]
+    if fallback:
+        dated=[x for x in fallback if re.search(r"20\d{4}",urlparse(x[1]).path)]
+        if dated:
+            return dated[0]
+    raise RuntimeError("催事予定表PDFが見つかりません")
 
 def ocr_pdf(pdf_bytes):
     with tempfile.TemporaryDirectory() as td:
@@ -251,7 +286,7 @@ def parse_schedule_ocr(text, year, months):
     return dedupe(events)
 
 def parse_event_guide(event_guide):
-    r=get(event_guide); soup=BeautifulSoup(r.text,"html.parser"); events=[]
+    r=get(event_guide); soup=BeautifulSoup(r.content,"html.parser"); events=[]
     for h in soup.find_all(["h2","h3","h4"]):
         title=clean(h.get_text(" ",strip=True))
         if not title or any(x in title for x in ["開催日","チケット","お問い合わせ","料金","会場"]): continue
@@ -324,7 +359,7 @@ def parse_time_from_text(text):
     return f"{cv(m.group(1),m.group(2),m.group(3))}〜{cv(m.group(4),m.group(5),m.group(6))}"
 
 def park_event_from_page(url, source):
-    r=get(url); soup=BeautifulSoup(r.text,"html.parser")
+    r=get(url); soup=BeautifulSoup(r.content,"html.parser")
     text=clean(soup.get_text(" ",strip=True),12000)
     if PARK_NAME not in text: return []
     h1=soup.find("h1")
@@ -351,7 +386,7 @@ def parse_city_park_events():
                 r=get(url); pages_ok+=1
             except Exception:
                 break
-            soup=BeautifulSoup(r.text,"html.parser")
+            soup=BeautifulSoup(r.content,"html.parser")
             links=[]
             for a in soup.find_all("a",href=True):
                 href=urljoin(url,a["href"])
@@ -377,7 +412,7 @@ def parse_tourism_park_events():
             r=get(url); pages_ok+=1
         except Exception:
             break
-        soup=BeautifulSoup(r.text,"html.parser")
+        soup=BeautifulSoup(r.content,"html.parser")
         for a in soup.find_all("a",href=True):
             href=urljoin(url,a["href"]); u=urlparse(href)
             if u.hostname not in {"www.inazawa-kankou.jp","inazawa-kankou.jp"}: continue
