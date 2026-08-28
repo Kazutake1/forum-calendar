@@ -2,7 +2,7 @@ name: Update Forum Events
 
 on:
   schedule:
-    - cron: '20 7 * * *'
+    - cron: '*/5 * * * *'
       timezone: 'Asia/Tokyo'
   workflow_dispatch:
 
