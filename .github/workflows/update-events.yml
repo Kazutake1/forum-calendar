@@ -3,7 +3,6 @@ name: Update Forum Events
 on:
   schedule:
     - cron: '*/5 * * * *'
-      timezone: 'Asia/Tokyo'
   workflow_dispatch:
 
 permissions:
