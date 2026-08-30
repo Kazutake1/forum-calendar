@@ -393,27 +393,19 @@ def parse_tourism_park_events():
 
 
 def _jr_pdf_text(pdf_bytes):
-    """Extract text from the official JR Central walking brochure PDF."""
     with tempfile.TemporaryDirectory() as td:
         p=Path(td)/"jr-walking.pdf"
         p.write_bytes(pdf_bytes)
-        try:
-            r=subprocess.run(
-                ["pdftotext","-layout",str(p),"-"],
-                capture_output=True,text=True,check=True,timeout=90
-            )
-            if r.stdout.strip():
-                return r.stdout
-        except Exception:
-            pass
-        r=subprocess.run(
-            ["pdftotext",str(p),"-"],
-            capture_output=True,text=True,check=True,timeout=90
-        )
-        return r.stdout
+        for args in (["pdftotext","-layout",str(p),"-"],["pdftotext",str(p),"-"]):
+            try:
+                r=subprocess.run(args,capture_output=True,text=True,check=True,timeout=90)
+                if r.stdout.strip():
+                    return r.stdout
+            except Exception:
+                pass
+    raise RuntimeError("JR東海パンフレットPDFの文字抽出に失敗しました")
 
 def _jr_brochure_url():
-    """Find the current official さわやかウォーキング brochure from JR Central."""
     r=get(JR_WALK_HOME)
     soup=BeautifulSoup(r.text,"html.parser")
     candidates=[]
@@ -422,15 +414,13 @@ def _jr_brochure_url():
         txt=clean(a.get_text(" ",strip=True),100)
         u=urlparse(href)
         if u.scheme=="https" and u.hostname=="walking.jr-central.co.jp" and u.path.lower().endswith(".pdf"):
-            score=0
-            if "パンフレット" in txt: score+=100
-            if "sw_" in u.path.lower(): score+=30
+            score=(100 if "パンフレット" in txt else 0)+(30 if "sw_" in u.path.lower() else 0)
             candidates.append((score,href))
     if not candidates:
         raise RuntimeError("JR東海パンフレットPDFが見つかりません")
     return sorted(candidates,reverse=True)[0][1]
 
-def _jr_year(month, day, text, pos):
+def _jr_year(month,day,text,pos):
     before=text[max(0,pos-500):pos+100]
     ys=re.findall(r"(20\d{2})\s*年",before)
     if ys:
@@ -439,79 +429,64 @@ def _jr_year(month, day, text, pos):
     y=jst.year
     try:
         d=datetime(y,month,day).date()
-        if (jst-d).days > 180:
-            y += 1
+        if (jst-d).days>180:
+            y+=1
     except Exception:
         pass
     return y
 
 def _jr_title_from_block(block):
-    bad_words=(
-        "稲沢駅","スタート","ゴール","受付","コース距離","所要時間","東海道線",
-        "一般向","家族向","初心者向","初級","中級","上級","Wポイント","参加費",
-        "凡例","開催日","駅名","スタート駅"
-    )
+    bad=("稲沢駅","スタート","ゴール","受付","コース距離","所要時間","東海道線",
+         "一般向","家族向","初心者向","初級","中級","上級","Wポイント","参加費",
+         "凡例","開催日","駅名","スタート駅")
     candidates=[]
     for raw in block.splitlines():
         line=clean(raw,240)
-        if not line or any(w in line for w in bad_words):
+        if not line or any(w in line for w in bad):
             continue
-        if re.search(r"\d{1,2}/\d{1,2}",line):
-            line=re.sub(r"\d{1,2}/\d{1,2}\s*[（(]?[月火水木金土日][）)]?","",line)
+        line=re.sub(r"\d{1,2}/\d{1,2}\s*[（(]?[月火水木金土日][）)]?","",line)
         line=re.sub(r"\b\d{1,2}:\d{2}\s*[〜～~\-]\s*\d{1,2}:\d{2}\b","",line)
         line=re.sub(r"約?\s*\d+(?:\.\d+)?\s*(?:km|㎞|キロ).*","",line,flags=re.I)
         line=clean(line,240).strip(" |｜・･-")
         compact=re.sub(r"\s","",line)
-        if len(compact) < 8:
-            continue
-        candidates.append((len(compact),line))
-    return max(candidates)[1] if candidates else "JR東海 さわやかウォーキング"
+        if len(compact)>=8:
+            candidates.append((len(compact),line))
+    return max(candidates)[1] if candidates else "さわやかウォーキング"
 
 def parse_jr_inazawa_walks():
-    """Read the official JR Central brochure and keep only courses starting at 稲沢駅."""
     brochure=_jr_brochure_url()
-    pdf=get(brochure).content
-    text=_jr_pdf_text(pdf).replace("\u3000"," ")
+    text=_jr_pdf_text(get(brochure).content).replace("\u3000"," ")
     events=[]
-    hits=[m.start() for m in re.finditer(r"稲沢\s*駅",text)]
-    for pos in hits:
-        left=max(0,pos-900); right=min(len(text),pos+900)
-        block=text[left:right]
+    for hit in re.finditer(r"稲沢\s*駅",text):
+        pos=hit.start()
         near=text[max(0,pos-140):min(len(text),pos+80)]
+        # Only accept 稲沢駅 when it is explicitly in the start-station context.
         if not re.search(r"スタート.{0,80}稲沢\s*駅|稲沢\s*駅.{0,80}スタート",near,re.S):
             continue
-
+        left=max(0,pos-900); right=min(len(text),pos+900)
+        block=text[left:right]; rel=pos-left
         dates=list(re.finditer(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",block))
         if not dates:
             continue
-        rel=pos-left
         before=[m for m in dates if m.start()<=rel]
-        dm=(before[-1] if before else dates[0])
+        dm=before[-1] if before else dates[0]
         month,day=map(int,dm.groups())
         year=_jr_year(month,day,text,left+dm.start())
+        date=f"{year:04d}-{month:02d}-{day:02d}"
         try:
-            date=f"{year:04d}-{month:02d}-{day:02d}"
             datetime.strptime(date,"%Y-%m-%d")
         except Exception:
             continue
-
         tm=re.search(r"(?:スタート受付|受付)[^\d]{0,20}(\d{1,2}:\d{2})\s*[〜～~\-]\s*(\d{1,2}:\d{2})",block)
         time=f"{tm.group(1)}〜{tm.group(2)}" if tm else ""
-        title=_jr_title_from_block(block)
-        if not title.startswith("JR東海"):
-            title=f"JR東海 さわやかウォーキング「{title}」"
-
+        course=_jr_title_from_block(block)
+        title=course if course.startswith("JR東海") else f"JR東海 さわやかウォーキング「{course}」"
         events.append({
-            "date":date,
-            "hall":JR_INAZAWA,
-            "venues":[JR_INAZAWA],
-            "time":time,
-            "title":title,
-            "price":"参加費無料・予約不要",
-            "source":"jr_walking",
+            "date":date,"hall":JR_INAZAWA,"venues":[JR_INAZAWA],"time":time,
+            "title":title,"price":"参加費無料・予約不要","source":"jr_walking",
             "official_url":brochure,
         })
-    return dedupe(events), brochure
+    return dedupe(events),brochure
 
 
 def main():
@@ -579,14 +554,12 @@ def main():
         notes.append(f"文化の丘公園（観光協会）取得失敗: {clean(e,180)}")
     park=dedupe(park)
 
-    # JR東海「さわやかウォーキング」: 稲沢駅スタートのコースだけ取得。
     try:
         jr_walk,jr_brochure=parse_jr_inazawa_walks()
         jr_success=True
         source_success=True
         notes.append(f"JR東海さわやかウォーキング（稲沢駅スタート） {len(jr_walk)}件")
     except Exception as e:
-        jr_brochure=JR_WALK_HOME
         notes.append(f"JR東海さわやかウォーキング取得失敗: {clean(e,180)}")
 
     base=old
@@ -609,7 +582,6 @@ def main():
 
     base.extend(guide)
     base.extend(park)
-    # JR公式取得に成功した時だけ、過去のJR稲沢駅データを公式最新情報で置換。
     if jr_success:
         base=[e for e in base if not (e.get("hall")==JR_INAZAWA or JR_INAZAWA in (e.get("venues") or []))]
         base.extend(jr_walk)
