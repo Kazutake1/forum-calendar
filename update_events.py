@@ -53,6 +53,12 @@ def get(url):
         raise RuntimeError(f"許可されていない取得先: {url}")
     r = requests.get(url, headers={"User-Agent": UA}, timeout=30, stream=True)
     r.raise_for_status()
+    # requests follows redirects by default. Validate the final destination too
+    # so an allowed host cannot redirect the updater to an arbitrary host.
+    final_u = urlparse(r.url)
+    if final_u.scheme != "https" or final_u.hostname not in ALLOWED_HOSTS:
+        r.close()
+        raise RuntimeError(f"許可されていないリダイレクト先: {r.url}")
     data = bytearray()
     for chunk in r.iter_content(65536):
         if chunk:
@@ -103,7 +109,9 @@ def sanitize_event(e):
     if e.get("source"): out["source"] = clean(e.get("source"), 32)
     if e.get("official_url"):
         u = clean(e.get("official_url"), 500)
-        if urlparse(u).scheme == "https": out["official_url"] = u
+        pu = urlparse(u)
+        if pu.scheme == "https" and pu.hostname and not any(ch in u for ch in ['"', "'", "<", ">"]):
+            out["official_url"] = u
     if not valid_date(out["date"]) or len(out["title"]) < 2:
         return None
     return out
@@ -435,57 +443,77 @@ def _jr_year(month,day,text,pos):
         pass
     return y
 
-def _jr_title_from_block(block):
-    bad=("稲沢駅","スタート","ゴール","受付","コース距離","所要時間","東海道線",
-         "一般向","家族向","初心者向","初級","中級","上級","Wポイント","参加費",
-         "凡例","開催日","駅名","スタート駅")
-    candidates=[]
-    for raw in block.splitlines():
-        line=clean(raw,240)
-        if not line or any(w in line for w in bad):
-            continue
-        line=re.sub(r"\d{1,2}/\d{1,2}\s*[（(]?[月火水木金土日][）)]?","",line)
-        line=re.sub(r"\b\d{1,2}:\d{2}\s*[〜～~\-]\s*\d{1,2}:\d{2}\b","",line)
-        line=re.sub(r"約?\s*\d+(?:\.\d+)?\s*(?:km|㎞|キロ).*","",line,flags=re.I)
-        line=clean(line,240).strip(" |｜・･-")
-        compact=re.sub(r"\s","",line)
-        if len(compact)>=8:
-            candidates.append((len(compact),line))
-    return max(candidates)[1] if candidates else "さわやかウォーキング"
+def _jr_clean_title(line):
+    line=clean(line,240).strip(" |｜・･-")
+    if not line:
+        return ""
+    if any(x in line for x in ("スタート","ゴール","受付","コース距離","所要時間","参加費")):
+        return ""
+    if re.fullmatch(r"[\d\s/:〜～()（）月火水木金土日祝・･\-]+",line):
+        return ""
+    return line if len(re.sub(r"\s","",line))>=6 else ""
 
 def parse_jr_inazawa_walks():
+    """Parse only brochure entries whose start station is explicitly 稲沢駅.
+
+    JR brochures normally put the date/line/station/start marker on one row and
+    the course title immediately below. We use that local structure instead of
+    selecting the longest text from a large surrounding block.
+    """
     brochure=_jr_brochure_url()
     text=_jr_pdf_text(get(brochure).content).replace("\u3000"," ")
+    lines=[clean(x,500) for x in text.splitlines()]
     events=[]
-    for hit in re.finditer(r"稲沢\s*駅",text):
-        pos=hit.start()
-        near=text[max(0,pos-140):min(len(text),pos+80)]
-        # Only accept 稲沢駅 when it is explicitly in the start-station context.
-        if not re.search(r"スタート.{0,80}稲沢\s*駅|稲沢\s*駅.{0,80}スタート",near,re.S):
+
+    for i,line in enumerate(lines):
+        if "稲沢駅" not in line or "スタート" not in line:
             continue
-        left=max(0,pos-900); right=min(len(text),pos+900)
-        block=text[left:right]; rel=pos-left
-        dates=list(re.finditer(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",block))
-        if not dates:
+
+        # Require a date in the same row or at most one row above.
+        date_text=line
+        dm=re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",date_text)
+        if not dm and i>0:
+            dm=re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",lines[i-1])
+            date_text=lines[i-1]
+        if not dm:
             continue
-        before=[m for m in dates if m.start()<=rel]
-        dm=before[-1] if before else dates[0]
+
         month,day=map(int,dm.groups())
-        year=_jr_year(month,day,text,left+dm.start())
+        pos=text.find(line) if line else 0
+        year=_jr_year(month,day,text,max(pos,0))
         date=f"{year:04d}-{month:02d}-{day:02d}"
         try:
             datetime.strptime(date,"%Y-%m-%d")
         except Exception:
             continue
-        tm=re.search(r"(?:スタート受付|受付)[^\d]{0,20}(\d{1,2}:\d{2})\s*[〜～~\-]\s*(\d{1,2}:\d{2})",block)
+
+        # Course title: first plausible line immediately following the start row.
+        course=""
+        for j in range(i+1,min(i+5,len(lines))):
+            cand=_jr_clean_title(lines[j])
+            if cand:
+                course=cand
+                break
+        if not course:
+            course="さわやかウォーキング"
+
+        # Search only a small local block for the start reception time.
+        local=" ".join(lines[max(0,i-2):min(len(lines),i+8)])
+        tm=re.search(r"(?:スタート受付|受付)[^\d]{0,30}(\d{1,2}:\d{2})\s*[〜～~\-]\s*(\d{1,2}:\d{2})",local)
         time=f"{tm.group(1)}〜{tm.group(2)}" if tm else ""
-        course=_jr_title_from_block(block)
+
         title=course if course.startswith("JR東海") else f"JR東海 さわやかウォーキング「{course}」"
         events.append({
-            "date":date,"hall":JR_INAZAWA,"venues":[JR_INAZAWA],"time":time,
-            "title":title,"price":"参加費無料・予約不要","source":"jr_walking",
+            "date":date,
+            "hall":JR_INAZAWA,
+            "venues":[JR_INAZAWA],
+            "time":time,
+            "title":title,
+            "price":"参加費無料・予約不要",
+            "source":"jr_walking",
             "official_url":brochure,
         })
+
     return dedupe(events),brochure
 
 
