@@ -1,0 +1,28 @@
+name: Diagnose JR Walking Web
+
+on:
+  push:
+    branches:
+      - fix-jr-walking-web-20260903
+    paths:
+      - diagnose_jr_web.py
+      - .github/workflows/diagnose-jr-web.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Diagnose JR Walking web data
+        run: python diagnose_jr_web.py
