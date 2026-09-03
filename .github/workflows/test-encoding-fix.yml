@@ -1,0 +1,48 @@
+name: Validate Encoding Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/test-encoding-fix.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout encoding-fix branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix-html-encoding-20260903
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install OCR tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-jpn
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Run updater without publishing
+        run: |
+          python update_events.py
+          echo '--- update-meta.json ---'
+          cat update-meta.json
+          echo '--- changed files (not committed) ---'
+          git status --short
+          echo '--- event count ---'
+          python - <<'PY'
+          import json
+          from collections import Counter
+          events=json.load(open('events.json',encoding='utf-8'))
+          print('total=',len(events))
+          print('venues=',Counter(e.get('hall','') for e in events))
+          PY
