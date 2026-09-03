@@ -21,16 +21,11 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install OCR tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y poppler-utils tesseract-ocr tesseract-ocr-jpn
-
       - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Update event data
-        run: python update_events.py
+      - name: Update event data (OCR disabled)
+        run: python update_events_no_ocr.py
 
       - name: Commit updated data
         run: |
