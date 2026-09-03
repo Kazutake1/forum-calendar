@@ -1,0 +1,29 @@
+name: Diagnose Fetch Temporary
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/diagnose-fetch-temp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-fetch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout diagnostic branch
+        uses: actions/checkout@v4
+        with:
+          ref: diagnose-fetch-20260902
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python packages
+        run: pip install requests==2.32.3 beautifulsoup4==4.12.3
+      - name: Run fetch diagnostics
+        run: python diagnose_fetch.py
