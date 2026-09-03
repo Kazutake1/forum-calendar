@@ -1,0 +1,38 @@
+name: Validate no-OCR updater
+
+on:
+  push:
+    branches:
+      - fix-html-encoding-20260903
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PDF text tools
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      - name: Run updater without schedule OCR replacement
+        run: |
+          python update_events_no_ocr.py
+          echo '--- update-meta.json ---'
+          cat update-meta.json
+          echo '--- changed files (not committed) ---'
+          git status --short
+          echo '--- event count ---'
+          python - <<'PY'
+          import json
+          from collections import Counter
+          events=json.load(open('events.json',encoding='utf-8'))
+          print('total=',len(events))
+          print('venues=',Counter(e.get('hall','') for e in events))
+          PY
