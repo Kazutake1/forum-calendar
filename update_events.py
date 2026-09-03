@@ -27,8 +27,6 @@ VENUE_CORRECTIONS = {
     "食品衛生責任者養成講習会": "小ホール",
 }
 
-# Verified event corrections. Keep this list limited to official sources
-# that have been manually confirmed.
 EVENT_CORRECTIONS = {
     "APF VISIONARY TRYOUT CUP 2026": {
         "title": "APF VISIONARY CUP 2026",
@@ -53,8 +51,6 @@ def get(url):
         raise RuntimeError(f"許可されていない取得先: {url}")
     r = requests.get(url, headers={"User-Agent": UA}, timeout=30, stream=True)
     r.raise_for_status()
-    # requests follows redirects by default. Validate the final destination too
-    # so an allowed host cannot redirect the updater to an arbitrary host.
     final_u = urlparse(r.url)
     if final_u.scheme != "https" or final_u.hostname not in ALLOWED_HOSTS:
         r.close()
@@ -67,6 +63,20 @@ def get(url):
                 raise RuntimeError("取得ファイルが大きすぎます")
     r._content = bytes(data)
     r._content_consumed = True
+    # Some source servers return Japanese HTML as text/html without a charset.
+    # requests then defaults to ISO-8859-1, which mojibakes Japanese and breaks
+    # title/link matching. Prefer an explicit charset, otherwise use requests'
+    # content-based apparent encoding for textual responses. Binary files such
+    # as PDFs are left untouched.
+    ctype = (r.headers.get("Content-Type") or "").lower()
+    if "text/" in ctype or "html" in ctype or "xml" in ctype:
+        explicit = re.search(r"charset\s*=\s*['\"]?([^;\s'\"]+)", ctype, re.I)
+        if explicit:
+            r.encoding = explicit.group(1)
+        else:
+            detected = r.apparent_encoding
+            if detected:
+                r.encoding = detected
     return r
 
 def load_json(path, default):
@@ -83,54 +93,33 @@ def valid_date(s):
         return False
 
 def sanitize_event(e):
-    out = {
-        "date": clean(e.get("date"), 10),
-        "hall": clean(e.get("hall"), 24),
-        "time": clean(e.get("time"), 40),
-        "title": clean(e.get("title"), 240),
-        "price": clean(e.get("price"), 100),
-    }
-    event_fix = EVENT_CORRECTIONS.get(out["title"])
+    out = {"date": clean(e.get("date"),10),"hall":clean(e.get("hall"),24),"time":clean(e.get("time"),40),"title":clean(e.get("title"),240),"price":clean(e.get("price"),100)}
+    event_fix=EVENT_CORRECTIONS.get(out["title"])
     if event_fix:
-        out["title"] = clean(event_fix.get("title") or out["title"], 240)
-        e = {**e}
-        if event_fix.get("official_url"):
-            e["official_url"] = event_fix["official_url"]
-
-    corrected_hall = VENUE_CORRECTIONS.get(out["title"])
-    if corrected_hall:
-        out["hall"] = corrected_hall
-        e = {**e, "venues": [corrected_hall]}
+        out["title"]=clean(event_fix.get("title") or out["title"],240); e={**e}
+        if event_fix.get("official_url"): e["official_url"]=event_fix["official_url"]
+    corrected_hall=VENUE_CORRECTIONS.get(out["title"])
+    if corrected_hall: out["hall"]=corrected_hall; e={**e,"venues":[corrected_hall]}
     venues=e.get("venues")
-    if isinstance(venues,list):
-        out["venues"]=[clean(v,40) for v in venues if clean(v,40)]
-    elif out["hall"]:
-        out["venues"]=[out["hall"]]
-    if e.get("source"): out["source"] = clean(e.get("source"), 32)
+    if isinstance(venues,list): out["venues"]=[clean(v,40) for v in venues if clean(v,40)]
+    elif out["hall"]: out["venues"]=[out["hall"]]
+    if e.get("source"): out["source"]=clean(e.get("source"),32)
     if e.get("official_url"):
-        u = clean(e.get("official_url"), 500)
-        pu = urlparse(u)
-        if pu.scheme == "https" and pu.hostname and not any(ch in u for ch in ['"', "'", "<", ">"]):
-            out["official_url"] = u
-    if not valid_date(out["date"]) or len(out["title"]) < 2:
-        return None
+        u=clean(e.get("official_url"),500); pu=urlparse(u)
+        if pu.scheme=="https" and pu.hostname and not any(ch in u for ch in ['"',"'","<",">"]): out["official_url"]=u
+    if not valid_date(out["date"]) or len(out["title"])<2: return None
     return out
 
-def key(e):
-    return (e.get("date", ""), clean(e.get("title")))
-
+def key(e): return (e.get("date",""),clean(e.get("title")))
 def dedupe(events):
-    out = {}
+    out={}
     for raw in events:
-        e = sanitize_event(raw)
+        e=sanitize_event(raw)
         if not e: continue
         k=key(e)
-        if k not in out:
-            out[k]=e
-            continue
-        cur=out[k]
-        venues=[]
-        for v in (cur.get("venues") or [cur.get("hall")]) + (e.get("venues") or [e.get("hall")]):
+        if k not in out: out[k]=e; continue
+        cur=out[k]; venues=[]
+        for v in (cur.get("venues") or [cur.get("hall")])+(e.get("venues") or [e.get("hall")]):
             if v and v not in venues: venues.append(v)
         cur["venues"]=venues
         if venues: cur["hall"]=venues[0]
@@ -139,124 +128,91 @@ def dedupe(events):
         if e.get("official_url"): cur["official_url"]=e["official_url"]
         sources=[x for x in [cur.get("source"),e.get("source")] if x]
         if sources: cur["source"]="+".join(dict.fromkeys(sources))
-    return sorted(out.values(), key=lambda x:(x["date"], x.get("time", ""), x["title"]))
+    return sorted(out.values(),key=lambda x:(x["date"],x.get("time",""),x["title"]))
+def ym(e): return e.get("date","")[:7]
 
-def ym(e): return e.get("date", "")[:7]
-
-
-def page_is_valid(url, kind):
+def page_is_valid(url,kind):
     try:
-        r=get(url)
-        soup=BeautifulSoup(r.text,"html.parser")
-        h1=clean(soup.find("h1").get_text(" ",strip=True) if soup.find("h1") else "", 200)
-        title=clean(soup.title.get_text(" ",strip=True) if soup.title else "", 200)
-        text=f"{h1} {title}"
-        if kind=="schedule":
-            return "ホール催事予定表" in text
+        r=get(url); soup=BeautifulSoup(r.text,"html.parser")
+        h1=clean(soup.find("h1").get_text(" ",strip=True) if soup.find("h1") else "",200)
+        title=clean(soup.title.get_text(" ",strip=True) if soup.title else "",200); text=f"{h1} {title}"
+        if kind=="schedule": return "ホール催事予定表" in text
         if kind=="events":
-            if ("コンサート" in text and "イベント" in text):
-                return True
-            # Structural fallback: consolidated event guide contains multiple event sections.
-            return len(soup.find_all(["h2","h3"], string=re.compile("財団|開催日"))) >= 2
-    except Exception:
-        return False
+            if "コンサート" in text and "イベント" in text: return True
+            return len(soup.find_all(["h2","h3"],string=re.compile("財団|開催日")))>=2
+    except Exception: return False
     return False
 
-def candidate_score(text, kind):
+def candidate_score(text,kind):
     t=clean(text,200)
     if kind=="schedule":
         if t=="ホール催事予定表": return 100
         if "ホール催事予定表" in t: return 80
         return 0
-    # Prefer the consolidated event-list link, not individual event links.
     if "イベント一覧を見る" in t: return 100
     if "コンサート" in t and "イベント" in t: return 95
     if t in {"イベント","イベント案内"}: return 50
     return 0
 
-def discover_page(kind, preferred):
-    # 1) Existing URL first, so ordinary runs remain fast.
-    if preferred and page_is_valid(preferred, kind):
-        return preferred, "fixed"
-
+def discover_page(kind,preferred):
+    if preferred and page_is_valid(preferred,kind): return preferred,"fixed"
     candidates={}
-    for hub in (ICA_HOME, SITE_MAP):
+    for hub in (ICA_HOME,SITE_MAP):
         try:
-            r=get(hub)
-            soup=BeautifulSoup(r.text,"html.parser")
-            for a in soup.find_all("a", href=True):
-                score=candidate_score(a.get_text(" ",strip=True), kind)
+            r=get(hub); soup=BeautifulSoup(r.text,"html.parser")
+            for a in soup.find_all("a",href=True):
+                score=candidate_score(a.get_text(" ",strip=True),kind)
                 if not score: continue
-                href=urljoin(hub,a["href"])
-                u=urlparse(href)
+                href=urljoin(hub,a["href"]); u=urlparse(href)
                 if u.scheme!="https" or u.hostname not in ALLOWED_HOSTS: continue
-                # Prefer pages inside the culture-forum area.
                 if "/ica/" in u.path: score+=10
                 candidates[href]=max(score,candidates.get(href,0))
-        except Exception:
-            continue
-
-    for url,_score in sorted(candidates.items(), key=lambda x:x[1], reverse=True):
-        if page_is_valid(url, kind):
-            return url, "discovered"
-
+        except Exception: continue
+    for url,_score in sorted(candidates.items(),key=lambda x:x[1],reverse=True):
+        if page_is_valid(url,kind): return url,"discovered"
     raise RuntimeError(f"{kind}ページの自動探索に失敗しました")
 
 def find_schedule_pdf(schedule_page):
-    r = get(schedule_page)
-    soup = BeautifulSoup(r.text, "html.parser")
-    links=[]
-    for a in soup.find_all("a", href=True):
-        text=clean(a.get_text(" ", strip=True))
-        href=urljoin(schedule_page, a["href"])
-        u=urlparse(href)
-        if u.scheme=="https" and u.hostname in ALLOWED_HOSTS and u.path.lower().endswith(".pdf") and ("催事予定表" in text or "イベント" in text):
-            links.append((text, href))
+    r=get(schedule_page); soup=BeautifulSoup(r.text,"html.parser"); links=[]
+    for a in soup.find_all("a",href=True):
+        text=clean(a.get_text(" ",strip=True)); href=urljoin(schedule_page,a["href"]); u=urlparse(href)
+        if u.scheme=="https" and u.hostname in ALLOWED_HOSTS and u.path.lower().endswith(".pdf") and ("催事予定表" in text or "イベント" in text): links.append((text,href))
     if not links: raise RuntimeError("催事予定表PDFが見つかりません")
     return links[0]
 
 def ocr_pdf(pdf_bytes):
     with tempfile.TemporaryDirectory() as td:
-        pdf=Path(td)/"schedule.pdf"; pdf.write_bytes(pdf_bytes)
-        prefix=Path(td)/"page"
+        pdf=Path(td)/"schedule.pdf"; pdf.write_bytes(pdf_bytes); prefix=Path(td)/"page"
         subprocess.run(["pdftoppm","-png","-r","240",str(pdf),str(prefix)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=90)
         texts=[]
         for img in sorted(Path(td).glob("page-*.png")):
-            p=subprocess.run(["tesseract",str(img),"stdout","-l","jpn+eng","--psm","6"],capture_output=True,text=True,check=True,timeout=90)
-            texts.append(p.stdout)
+            p=subprocess.run(["tesseract",str(img),"stdout","-l","jpn+eng","--psm","6"],capture_output=True,text=True,check=True,timeout=90); texts.append(p.stdout)
         return "\n".join(texts)
 
-def infer_year_months(label, pdf_url):
+def infer_year_months(label,pdf_url):
     m=re.search(r"令和\s*(\d+)年\s*(\d+)月.*?(\d+)月",label)
-    if m: return 2018+int(m.group(1)), [int(m.group(2)),int(m.group(3))]
+    if m: return 2018+int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     m=re.search(r"(20\d{2})(\d{2})-(\d{2})",pdf_url)
     if m: return int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     n=datetime.now(); return n.year,[n.month]
 
-def parse_schedule_ocr(text, year, months):
+def parse_schedule_ocr(text,year,months):
     events=[]; current_month=months[0]
     for raw in text.splitlines():
-        line=clean(raw, 600)
+        line=clean(raw,600)
         if not line: continue
         mm=re.search(r"(\d{1,2})\s*月",line)
         if mm and int(mm.group(1)) in months: current_month=int(mm.group(1))
-        hall=next((h for h in HALLS if h in line), "")
+        hall=next((h for h in HALLS if h in line),"")
         if not hall: continue
         dm=re.search(r"(?:^|\s)(\d{1,2})(?:日|\s)",line)
         if not dm: continue
         day=int(dm.group(1))
-        try:
-            d=datetime(year,current_month,day).strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-        title=re.sub(rf"(^|\s){day}(日)?(\s|$)"," ",line,count=1).replace(hall," ")
-        title=re.sub(r"\b\d{1,2}:\d{2}\b.*$","",title)
-        title=re.sub(r"\b(無料|関係者|要整理券|会員制)\b.*$","",title)
-        title=clean(title)
+        try: d=datetime(year,current_month,day).strftime("%Y-%m-%d")
+        except ValueError: continue
+        title=re.sub(rf"(^|\s){day}(日)?(\s|$)"," ",line,count=1).replace(hall," "); title=re.sub(r"\b\d{1,2}:\d{2}\b.*$","",title); title=re.sub(r"\b(無料|関係者|要整理券|会員制)\b.*$","",title); title=clean(title)
         if len(title)<4: continue
-        tm=re.search(r"(\d{1,2}:\d{2})(?:\s*[〜～~-]\s*(\d{1,2}:\d{2}))?",line)
-        time=tm.group(1)+(f"〜{tm.group(2)}" if tm and tm.group(2) else "〜") if tm else ""
-        price="無料" if "無料" in line else "関係者" if "関係者" in line else "要整理券" if "要整理券" in line else ""
+        tm=re.search(r"(\d{1,2}:\d{2})(?:\s*[〜～~-]\s*(\d{1,2}:\d{2}))?",line); time=tm.group(1)+(f"〜{tm.group(2)}" if tm and tm.group(2) else "〜") if tm else ""; price="無料" if "無料" in line else "関係者" if "関係者" in line else "要整理券" if "要整理券" in line else ""
         events.append({"date":d,"hall":hall,"time":time,"title":title,"price":price,"source":"schedule_ocr"})
     return dedupe(events)
 
@@ -272,35 +228,22 @@ def parse_event_guide(event_guide):
             if cur.name in ["h2","h3","h4"] and cur is not h: break
             t=clean(cur.get_text(" ",strip=True))
             if t: chunk.append(t)
-        ctx=" ".join(chunk)
-        dm=re.search(r"令和\s*(\d+)年\s*(\d+)月\s*(\d+)日",ctx)
+        ctx=" ".join(chunk); dm=re.search(r"令和\s*(\d+)年\s*(\d+)月\s*(\d+)日",ctx)
         if dm: year,month,day=2018+int(dm.group(1)),int(dm.group(2)),int(dm.group(3))
         else:
             dm=re.search(r"(20\d{2})年\s*(\d+)月\s*(\d+)日",ctx)
             if not dm: continue
             year,month,day=map(int,dm.groups())
-        hall=next((hh for hh in HALLS if hh in ctx),"その他")
-        tm=re.search(r"(\d{1,2})時(\d{2})分",ctx)
-        time=f"{int(tm.group(1))}:{tm.group(2)}〜" if tm else ""
-        cleaned=re.sub(r"^[〖【].*?[〗】]\s*","",title)
+        hall=next((hh for hh in HALLS if hh in ctx),"その他"); tm=re.search(r"(\d{1,2})時(\d{2})分",ctx); time=f"{int(tm.group(1))}:{tm.group(2)}〜" if tm else ""; cleaned=re.sub(r"^[〖【].*?[〗】]\s*","",title)
         events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide})
     return dedupe(events)
 
-
-def month_add(dt, n):
-    y=dt.year+(dt.month-1+n)//12
-    m=(dt.month-1+n)%12+1
-    return y,m
+def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
 
 def expand_dates_from_text(text):
-    """Extract event dates only from explicitly date-labeled context."""
-    today=datetime.now().date()
-    candidates=[]
-    fragments=re.split(r"[。\n\r]|(?=開催日時)|(?=開催日)|(?=日時)|(?=とき)", text)
-    labeled=[f for f in fragments if re.search(r"(開催日時|開催日|日時|とき)",f)]
+    today=datetime.now().date(); candidates=[]; fragments=re.split(r"[。\n\r]|(?=開催日時)|(?=開催日)|(?=日時)|(?=とき)",text); labeled=[f for f in fragments if re.search(r"(開催日時|開催日|日時|とき)",f)]
     for frag in labeled[:12]:
-        frag=re.split(r"(更新日|掲載日|申込|申し込み|募集|締切|受付期間|販売期間)",frag,maxsplit=1)[0]
-        full=[]
+        frag=re.split(r"(更新日|掲載日|申込|申し込み|募集|締切|受付期間|販売期間)",frag,maxsplit=1)[0]; full=[]
         for y,m,d in re.findall(r"(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日",frag):
             try: full.append(datetime(int(y),int(m),int(d)).date())
             except ValueError: pass
@@ -308,13 +251,8 @@ def expand_dates_from_text(text):
             try: full.append(datetime(2018+int(ry),int(m),int(d)).date())
             except ValueError: pass
         if len(full)>=2:
-            a,b=full[0],full[1]
-            if 0 <= (b-a).days <= 14:
-                candidates.extend(a+timedelta(days=i) for i in range((b-a).days+1))
-            else:
-                candidates.extend(full)
-        else:
-            candidates.extend(full)
+            a,b=full[0],full[1]; candidates.extend((a+timedelta(days=i) for i in range((b-a).days+1)) if 0<=(b-a).days<=14 else full)
+        else: candidates.extend(full)
         base=re.search(r"(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日",frag)
         if base:
             y,m=int(base.group(1)),int(base.group(2))
@@ -333,309 +271,141 @@ def parse_time_from_text(text):
         return f"{h:02d}:{mi:02d}"
     return f"{cv(m.group(1),m.group(2),m.group(3))}〜{cv(m.group(4),m.group(5),m.group(6))}"
 
-def park_event_from_page(url, source):
-    r=get(url); soup=BeautifulSoup(r.text,"html.parser")
-    text=clean(soup.get_text(" ",strip=True),12000)
+def park_event_from_page(url,source):
+    r=get(url); soup=BeautifulSoup(r.text,"html.parser"); text=clean(soup.get_text(" ",strip=True),12000)
     if PARK_NAME not in text: return []
-    h1=soup.find("h1")
-    title=clean(h1.get_text(" ",strip=True) if h1 else (soup.title.get_text(" ",strip=True) if soup.title else ""),240)
+    h1=soup.find("h1"); title=clean(h1.get_text(" ",strip=True) if h1 else (soup.title.get_text(" ",strip=True) if soup.title else ""),240)
     if not title or title in {"イベントカレンダー","イベント"}: return []
-    dates=expand_dates_from_text(text)
-    today=datetime.now().date()
-    dates=[d for d in dates if today-timedelta(days=45) <= d <= today+timedelta(days=420)]
-    time=parse_time_from_text(text)
-    price=""
-    if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text: price="無料"
-    return [{"date":d.strftime("%Y-%m-%d"),"hall":PARK_NAME,"venues":[PARK_NAME],"time":time,
-             "title":title,"price":price,"source":source,"official_url":url} for d in dates]
+    dates=expand_dates_from_text(text); today=datetime.now().date(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; time=parse_time_from_text(text); price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
+    return [{"date":d.strftime("%Y-%m-%d"),"hall":PARK_NAME,"venues":[PARK_NAME],"time":time,"title":title,"price":price,"source":source,"official_url":url} for d in dates]
 
 def parse_city_park_events():
-    today=datetime.now().date()
-    seen=set(); events=[]; pages_ok=0
-    for offset in range(0,13):
-        y,m=month_add(datetime(today.year,today.month,1),offset)
-        mon=f"{y:04d}{m:02d}"
+    today=datetime.now().date(); seen=set(); events=[]; pages_ok=0
+    for offset in range(13):
+        y,m=month_add(datetime(today.year,today.month,1),offset); mon=f"{y:04d}{m:02d}"
         for page in range(1,6):
             url=CITY_EVENT_LIST.format(mon=mon,page=page)
-            try:
-                r=get(url); pages_ok+=1
-            except Exception:
-                break
-            soup=BeautifulSoup(r.text,"html.parser")
-            links=[]
+            try: r=get(url); pages_ok+=1
+            except Exception: break
+            soup=BeautifulSoup(r.text,"html.parser"); links=[]
             for a in soup.find_all("a",href=True):
-                href=urljoin(url,a["href"])
-                u=urlparse(href)
-                if u.hostname!="www.city.inazawa.aichi.jp": continue
-                if not re.fullmatch(r"/0{0,6}\d+\.html",u.path): continue
-                if href not in seen:
-                    seen.add(href); links.append(href)
+                href=urljoin(url,a["href"]); u=urlparse(href)
+                if u.hostname!="www.city.inazawa.aichi.jp" or not re.fullmatch(r"/0{0,6}\d+\.html",u.path): continue
+                if href not in seen: seen.add(href); links.append(href)
             if not links and page>1: break
             for href in links:
                 try: events.extend(park_event_from_page(href,"city_event_calendar"))
                 except Exception: continue
-            # Usually 10/page; a short content page means last page.
             if len(links)<8: break
-    return dedupe(events), pages_ok
+    return dedupe(events),pages_ok
 
 def parse_tourism_park_events():
-    # Supplementary only: the tourism site may reject GitHub's overseas runner IP.
     seen=set(); events=[]; pages_ok=0
     for page in range(1,4):
         url=TOURISM_EVENTS if page==1 else f"{TOURISM_EVENTS}/page/{page}"
-        try:
-            r=get(url); pages_ok+=1
-        except Exception:
-            break
+        try: r=get(url); pages_ok+=1
+        except Exception: break
         soup=BeautifulSoup(r.text,"html.parser")
         for a in soup.find_all("a",href=True):
             href=urljoin(url,a["href"]); u=urlparse(href)
-            if u.hostname not in {"www.inazawa-kankou.jp","inazawa-kankou.jp"}: continue
-            if not re.fullmatch(r"/archives/\d+/?",u.path): continue
-            if href in seen: continue
+            if u.hostname not in {"www.inazawa-kankou.jp","inazawa-kankou.jp"} or not re.fullmatch(r"/archives/\d+/?",u.path) or href in seen: continue
             seen.add(href)
             try: events.extend(park_event_from_page(href,"tourism"))
             except Exception: continue
-    return dedupe(events), pages_ok
-
-
+    return dedupe(events),pages_ok
 
 def _jr_pdf_text(pdf_bytes):
     with tempfile.TemporaryDirectory() as td:
-        p=Path(td)/"jr-walking.pdf"
-        p.write_bytes(pdf_bytes)
+        p=Path(td)/"jr-walking.pdf"; p.write_bytes(pdf_bytes)
         for args in (["pdftotext","-layout",str(p),"-"],["pdftotext",str(p),"-"]):
             try:
                 r=subprocess.run(args,capture_output=True,text=True,check=True,timeout=90)
-                if r.stdout.strip():
-                    return r.stdout
-            except Exception:
-                pass
+                if r.stdout.strip(): return r.stdout
+            except Exception: pass
     raise RuntimeError("JR東海パンフレットPDFの文字抽出に失敗しました")
 
 def _jr_brochure_url():
-    r=get(JR_WALK_HOME)
-    soup=BeautifulSoup(r.text,"html.parser")
-    candidates=[]
+    r=get(JR_WALK_HOME); soup=BeautifulSoup(r.text,"html.parser"); candidates=[]
     for a in soup.find_all("a",href=True):
-        href=urljoin(JR_WALK_HOME,a["href"])
-        txt=clean(a.get_text(" ",strip=True),100)
-        u=urlparse(href)
-        if u.scheme=="https" and u.hostname=="walking.jr-central.co.jp" and u.path.lower().endswith(".pdf"):
-            score=(100 if "パンフレット" in txt else 0)+(30 if "sw_" in u.path.lower() else 0)
-            candidates.append((score,href))
-    if not candidates:
-        raise RuntimeError("JR東海パンフレットPDFが見つかりません")
+        href=urljoin(JR_WALK_HOME,a["href"]); txt=clean(a.get_text(" ",strip=True),100); u=urlparse(href)
+        if u.scheme=="https" and u.hostname=="walking.jr-central.co.jp" and u.path.lower().endswith(".pdf"): candidates.append(((100 if "パンフレット" in txt else 0)+(30 if "sw_" in u.path.lower() else 0),href))
+    if not candidates: raise RuntimeError("JR東海パンフレットPDFが見つかりません")
     return sorted(candidates,reverse=True)[0][1]
 
 def _jr_year(month,day,text,pos):
-    before=text[max(0,pos-500):pos+100]
-    ys=re.findall(r"(20\d{2})\s*年",before)
-    if ys:
-        return int(ys[-1])
-    jst=datetime.now(timezone(timedelta(hours=9))).date()
-    y=jst.year
+    before=text[max(0,pos-500):pos+100]; ys=re.findall(r"(20\d{2})\s*年",before)
+    if ys: return int(ys[-1])
+    jst=datetime.now(timezone(timedelta(hours=9))).date(); y=jst.year
     try:
-        d=datetime(y,month,day).date()
-        if (jst-d).days>180:
-            y+=1
-    except Exception:
-        pass
+        if (jst-datetime(y,month,day).date()).days>180: y+=1
+    except Exception: pass
     return y
 
 def _jr_clean_title(line):
     line=clean(line,240).strip(" |｜・･-")
-    if not line:
-        return ""
-    if any(x in line for x in ("スタート","ゴール","受付","コース距離","所要時間","参加費")):
-        return ""
-    if re.fullmatch(r"[\d\s/:〜～()（）月火水木金土日祝・･\-]+",line):
-        return ""
+    if not line or any(x in line for x in ("スタート","ゴール","受付","コース距離","所要時間","参加費")) or re.fullmatch(r"[\d\s/:〜～()（）月火水木金土日祝・･\-]+",line): return ""
     return line if len(re.sub(r"\s","",line))>=6 else ""
 
 def parse_jr_inazawa_walks():
-    """Parse only brochure entries whose start station is explicitly 稲沢駅.
-
-    JR brochures normally put the date/line/station/start marker on one row and
-    the course title immediately below. We use that local structure instead of
-    selecting the longest text from a large surrounding block.
-    """
-    brochure=_jr_brochure_url()
-    text=_jr_pdf_text(get(brochure).content).replace("\u3000"," ")
-    lines=[clean(x,500) for x in text.splitlines()]
-    events=[]
-
+    brochure=_jr_brochure_url(); text=_jr_pdf_text(get(brochure).content).replace("\u3000"," "); lines=[clean(x,500) for x in text.splitlines()]; events=[]
     for i,line in enumerate(lines):
-        if "稲沢駅" not in line or "スタート" not in line:
-            continue
-
-        # Require a date in the same row or at most one row above.
-        date_text=line
-        dm=re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",date_text)
-        if not dm and i>0:
-            dm=re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",lines[i-1])
-            date_text=lines[i-1]
-        if not dm:
-            continue
-
-        month,day=map(int,dm.groups())
-        pos=text.find(line) if line else 0
-        year=_jr_year(month,day,text,max(pos,0))
-        date=f"{year:04d}-{month:02d}-{day:02d}"
-        try:
-            datetime.strptime(date,"%Y-%m-%d")
-        except Exception:
-            continue
-
-        # Course title: first plausible line immediately following the start row.
+        if "稲沢駅" not in line or "スタート" not in line: continue
+        dm=re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",line)
+        if not dm and i>0: dm=re.search(r"(?<!\d)(\d{1,2})\s*/\s*(\d{1,2})(?!\d)",lines[i-1])
+        if not dm: continue
+        month,day=map(int,dm.groups()); pos=text.find(line) if line else 0; year=_jr_year(month,day,text,max(pos,0)); date=f"{year:04d}-{month:02d}-{day:02d}"
+        try: datetime.strptime(date,"%Y-%m-%d")
+        except Exception: continue
         course=""
         for j in range(i+1,min(i+5,len(lines))):
             cand=_jr_clean_title(lines[j])
-            if cand:
-                course=cand
-                break
-        if not course:
-            course="さわやかウォーキング"
-
-        # Search only a small local block for the start reception time.
-        local=" ".join(lines[max(0,i-2):min(len(lines),i+8)])
-        tm=re.search(r"(?:スタート受付|受付)[^\d]{0,30}(\d{1,2}:\d{2})\s*[〜～~\-]\s*(\d{1,2}:\d{2})",local)
-        time=f"{tm.group(1)}〜{tm.group(2)}" if tm else ""
-
-        title=course if course.startswith("JR東海") else f"JR東海 さわやかウォーキング「{course}」"
-        events.append({
-            "date":date,
-            "hall":JR_INAZAWA,
-            "venues":[JR_INAZAWA],
-            "time":time,
-            "title":title,
-            "price":"参加費無料・予約不要",
-            "source":"jr_walking",
-            "official_url":brochure,
-        })
-
+            if cand: course=cand; break
+        if not course: course="さわやかウォーキング"
+        local=" ".join(lines[max(0,i-2):min(len(lines),i+8)]); tm=re.search(r"(?:スタート受付|受付)[^\d]{0,30}(\d{1,2}:\d{2})\s*[〜～~\-]\s*(\d{1,2}:\d{2})",local); time=f"{tm.group(1)}〜{tm.group(2)}" if tm else ""; title=course if course.startswith("JR東海") else f"JR東海 さわやかウォーキング「{course}」"
+        events.append({"date":date,"hall":JR_INAZAWA,"venues":[JR_INAZAWA],"time":time,"title":title,"price":"参加費無料・予約不要","source":"jr_walking","official_url":brochure})
     return dedupe(events),brochure
 
-
 def main():
-    old=dedupe(load_json(EVENTS_FILE, []))
-    old_meta=load_json(META_FILE, {})
-    run_at=now_iso(); notes=[]
-    guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
-
-    previous_urls=old_meta.get("resolved_urls") or {}
-    event_guide_pref=previous_urls.get("events") or DEFAULT_EVENT_GUIDE
-    schedule_page_pref=previous_urls.get("schedule") or DEFAULT_SCHEDULE_PAGE
-    event_guide=event_guide_pref
-    schedule_page=schedule_page_pref
-
-    try:
-        event_guide,mode=discover_page("events", event_guide_pref)
-        notes.append(f"イベント案内URL: {mode} {event_guide}")
-    except Exception as e:
-        notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")
-
-    try:
-        schedule_page,mode=discover_page("schedule", schedule_page_pref)
-        notes.append(f"催事予定表URL: {mode} {schedule_page}")
-    except Exception as e:
-        notes.append(f"催事予定表URL探索失敗: {clean(e,180)}")
-
+    old=dedupe(load_json(EVENTS_FILE,[])); old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
+    previous_urls=old_meta.get("resolved_urls") or {}; event_guide_pref=previous_urls.get("events") or DEFAULT_EVENT_GUIDE; schedule_page_pref=previous_urls.get("schedule") or DEFAULT_SCHEDULE_PAGE; event_guide=event_guide_pref; schedule_page=schedule_page_pref
+    try: event_guide,mode=discover_page("events",event_guide_pref); notes.append(f"イベント案内URL: {mode} {event_guide}")
+    except Exception as e: notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")
+    try: schedule_page,mode=discover_page("schedule",schedule_page_pref); notes.append(f"催事予定表URL: {mode} {schedule_page}")
+    except Exception as e: notes.append(f"催事予定表URL探索失敗: {clean(e,180)}")
     try:
         guide=parse_event_guide(event_guide)
-        if guide:
-            source_success=True; forum_success=True; notes.append(f"公式イベント案内 {len(guide)}件")
+        if guide: source_success=True; forum_success=True; notes.append(f"公式イベント案内 {len(guide)}件")
         else: notes.append("公式イベント案内: 構造化イベント0件")
-    except Exception as e:
-        notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
-
+    except Exception as e: notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
     try:
-        label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content
-        year,months=infer_year_months(label,pdf_url); target_yms={f"{year:04d}-{m:02d}" for m in months}
-        parsed=parse_schedule_ocr(ocr_pdf(pdf),year,months)
-        old_target=sum(1 for e in old if ym(e) in target_yms and e.get("hall") in HALLS)
-        threshold=max(8, int(old_target*0.60)) if old_target else 8
-        if len(parsed)>=threshold:
-            schedule=parsed; schedule_trusted=True; source_success=True; forum_success=True
-            notes.append(f"催事予定表OCR 信頼済み {len(parsed)}件 / しきい値{threshold}")
-        else:
-            notes.append(f"催事予定表OCR 信頼度不足 {len(parsed)}件 / しきい値{threshold} のため既存月データ維持")
-    except Exception as e:
-        notes.append(f"催事予定表OCR失敗: {clean(e,180)}")
-
-    # Culture-no-Oka Park events: city official calendar is primary, tourism association is supplementary.
-    try:
-        city_park,checked=parse_city_park_events()
-        city_park_authoritative=checked>0
-        park.extend(city_park)
-        park_success = park_success or checked>0
-        source_success = source_success or checked>0
-        notes.append(f"文化の丘公園（市公式） {len(city_park)}件 / カレンダー{checked}ページ確認")
-    except Exception as e:
-        notes.append(f"文化の丘公園（市公式）取得失敗: {clean(e,180)}")
-    try:
-        tourism_park,checked=parse_tourism_park_events()
-        park.extend(tourism_park)
-        if checked>0: park_success=True; source_success=True
-        notes.append(f"文化の丘公園（観光協会） {len(tourism_park)}件 / {checked}ページ確認")
-    except Exception as e:
-        notes.append(f"文化の丘公園（観光協会）取得失敗: {clean(e,180)}")
+        label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content; year,months=infer_year_months(label,pdf_url); target_yms={f"{year:04d}-{m:02d}" for m in months}; parsed=parse_schedule_ocr(ocr_pdf(pdf),year,months); old_target=sum(1 for e in old if ym(e) in target_yms and e.get("hall") in HALLS); threshold=max(8,int(old_target*0.60)) if old_target else 8
+        if len(parsed)>=threshold: schedule=parsed; schedule_trusted=True; source_success=True; forum_success=True; notes.append(f"催事予定表OCR 信頼済み {len(parsed)}件 / しきい値{threshold}")
+        else: notes.append(f"催事予定表OCR 信頼度不足 {len(parsed)}件 / しきい値{threshold} のため既存月データ維持")
+    except Exception as e: notes.append(f"催事予定表OCR失敗: {clean(e,180)}")
+    try: city_park,checked=parse_city_park_events(); city_park_authoritative=checked>0; park.extend(city_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（市公式） {len(city_park)}件 / カレンダー{checked}ページ確認")
+    except Exception as e: notes.append(f"文化の丘公園（市公式）取得失敗: {clean(e,180)}")
+    try: tourism_park,checked=parse_tourism_park_events(); park.extend(tourism_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（観光協会） {len(tourism_park)}件 / {checked}ページ確認")
+    except Exception as e: notes.append(f"文化の丘公園（観光協会）取得失敗: {clean(e,180)}")
     park=dedupe(park)
-
-    try:
-        jr_walk,jr_brochure=parse_jr_inazawa_walks()
-        jr_success=True
-        source_success=True
-        notes.append(f"JR東海さわやかウォーキング（稲沢駅スタート） {len(jr_walk)}件")
-    except Exception as e:
-        notes.append(f"JR東海さわやかウォーキング取得失敗: {clean(e,180)}")
-
+    try: jr_walk,jr_brochure=parse_jr_inazawa_walks(); jr_success=True; source_success=True; notes.append(f"JR東海さわやかウォーキング（稲沢駅スタート） {len(jr_walk)}件")
+    except Exception as e: notes.append(f"JR東海さわやかウォーキング取得失敗: {clean(e,180)}")
     base=old
-    if schedule_trusted:
-        base=[e for e in base if not (ym(e) in target_yms and e.get("hall") in HALLS)]
-        base.extend(schedule)
-
+    if schedule_trusted: base=[e for e in base if not (ym(e) in target_yms and e.get("hall") in HALLS)]; base.extend(schedule)
     if city_park_authoritative:
-        today=datetime.now().date()
-        horizon_end=today+timedelta(days=400)
+        today=datetime.now().date(); horizon_end=today+timedelta(days=400)
         def keep_old_park(e):
             venues=e.get("venues") or [e.get("hall")]
             if PARK_NAME not in venues: return True
             try: d=datetime.strptime(e.get("date",""),"%Y-%m-%d").date()
             except Exception: return True
-            if not (today <= d <= horizon_end): return True
-            src=e.get("source","")
-            return not any(s in src for s in ("city_event_calendar","tourism"))
+            if not (today<=d<=horizon_end): return True
+            return not any(s in e.get("source","") for s in ("city_event_calendar","tourism"))
         base=[e for e in base if keep_old_park(e)]
-
-    base.extend(guide)
-    base.extend(park)
-    if jr_success:
-        base=[e for e in base if not (e.get("hall")==JR_INAZAWA or JR_INAZAWA in (e.get("venues") or []))]
-        base.extend(jr_walk)
-
+    base.extend(guide); base.extend(park)
+    if jr_success: base=[e for e in base if not (e.get("hall")==JR_INAZAWA or JR_INAZAWA in (e.get("venues") or []))]; base.extend(jr_walk)
     merged=dedupe(base)
     if not merged: merged=old
-
-    last_success=run_at if source_success else old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""
-    last_forum=run_at if forum_success else old_meta.get("last_successful_forum_at") or old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""
-    last_park=run_at if park_success else old_meta.get("last_successful_park_at") or ""
-    status="ok" if forum_success else ("partial" if source_success else "fallback")
-    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8")
-    jst=timezone(timedelta(hours=9))
-    META_FILE.write_text(json.dumps({
-        "status":status,
-        "updated_at":run_at,
-        "updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),
-        "last_successful_source_at":last_success,
-        "last_successful_forum_at":last_forum,
-        "last_successful_park_at":last_park,
-        "event_count":len(merged),
-        "schedule_replaced":schedule_trusted,
-        "notes":notes,
-        "resolved_urls":{"events":event_guide,"schedule":schedule_page},
-        "sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]
-    },ensure_ascii=False,indent=2),encoding="utf-8")
-    print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
+    last_success=run_at if source_success else old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_forum=run_at if forum_success else old_meta.get("last_successful_forum_at") or old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_park=run_at if park_success else old_meta.get("last_successful_park_at") or ""; status="ok" if forum_success else ("partial" if source_success else "fallback")
+    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
 
 if __name__=="__main__": main()
