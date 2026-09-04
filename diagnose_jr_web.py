@@ -1,49 +1,29 @@
 #!/usr/bin/env python3
-from urllib.parse import urljoin
 import re
 import requests
-from bs4 import BeautifulSoup
 
-BASE='https://walking.jr-central.co.jp/'
-INDEX=urljoin(BASE,'course/index.html')
-TARGETS=[
-    INDEX,
-    urljoin(BASE,'course/_javascript/script.js'),
-    urljoin(BASE,'_assets/_javascript/common.js'),
-    urljoin(BASE,'_assets/_config/config.js'),
-    urljoin(BASE,'sitemap.xml'),
-    urljoin(BASE,'robots.txt'),
-]
+URL='https://walking.jr-central.co.jp/course/_javascript/script.js'
 UA='forum-calendar-auto-updater/2.0 (+GitHub Actions; jr diagnostics)'
+r=requests.get(URL,headers={'User-Agent':UA},timeout=30)
+print('FETCH',r.status_code,r.headers.get('Content-Type',''),r.url)
+r.raise_for_status()
+r.encoding=r.apparent_encoding or r.encoding
+text=r.text
+print('LEN',len(text))
 
-def fetch(url):
-    r=requests.get(url,headers={'User-Agent':UA},timeout=30,allow_redirects=True)
-    print('\nFETCH',r.status_code,r.headers.get('Content-Type',''),r.url)
-    if r.status_code!=200:
-        return ''
-    ctype=r.headers.get('Content-Type','').lower()
-    if 'text' in ctype or 'javascript' in ctype or 'json' in ctype or 'xml' in ctype:
-        r.encoding=r.apparent_encoding or r.encoding
-    return r.text
+for needle in ['searchCond:', 'courseList:', 'loadCond', 'loadList', 'X7=', 'V7(', 'course_data']:
+    print('\n===',needle,'===')
+    start=0
+    found=0
+    while True:
+        i=text.find(needle,start)
+        if i<0 or found>=8:
+            break
+        print(text[max(0,i-1000):min(len(text),i+1800)])
+        start=i+len(needle)
+        found+=1
 
-for url in TARGETS:
-    text=fetch(url)
-    if not text:
-        continue
-    print('LEN',len(text))
-    if url.endswith('script.js') or url.endswith('common.js') or url.endswith('config.js'):
-        print('--- NETWORK/DATA HITS ---')
-        for line in text.splitlines():
-            if re.search(r'ajax|fetch\(|axios|\.json|\.php|/api/|course|station|article|displayData|endpoint|url\s*:',line,re.I):
-                print(re.sub(r'\s+',' ',line).strip()[:3000])
-        print('--- URL/PATH LITERALS ---')
-        for lit in re.findall(r'["\']([^"\']{1,500})["\']',text):
-            if re.search(r'course|station|search|\.json|\.php|api|ajax',lit,re.I):
-                print(lit[:1000])
-    elif 'sitemap' in url or 'robots' in url:
-        print(text[:20000])
-    else:
-        soup=BeautifulSoup(text,'html.parser')
-        print('DETAIL LINKS',re.findall(r'/course/detail/\d+\.html',text)[:100])
-        for tag in soup.find_all('script',src=True):
-            print('SCRIPT',urljoin(url,tag['src']))
+print('\n=== LIKELY ENDPOINT LITERALS ===')
+for lit in re.findall(r'["\']([^"\']{1,500})["\']',text):
+    if any(x in lit.lower() for x in ['.json','.php','api/','course_data','course-list','search-cond','searchcond','courselist']):
+        print(lit)
