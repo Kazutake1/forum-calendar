@@ -14,7 +14,6 @@
 :root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fffbeb;--park2:#b45309;--jr:#fdf4ff;--jr2:#a21caf}
 html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fffbeb;--park2:#b45309;--jr:#fdf4ff;--jr2:#a21caf}
 html[data-theme="dark"]{--bg:#0c1017;--card:#151a22;--text:#f3f4f6;--muted:#98a2b3;--line:#2d3440;--accent:#60a5fa;--large:#3d2422;--large2:#fca5a5;--mid:#1e3049;--mid2:#93c5fd;--small:#173629;--small2:#86efac;--other:#2c2442;--other2:#c4b5fd;--park:#3b2f0b;--park2:#facc15;--jr:#3b1f3f;--jr2:#f0abfc}
-@media(prefers-color-scheme:dark){html:not([data-theme]){--bg:#0c1017;--card:#151a22;--text:#f3f4f6;--muted:#98a2b3;--line:#2d3440;--accent:#60a5fa;--large:#3d2422;--large2:#fca5a5;--mid:#1e3049;--mid2:#93c5fd;--small:#173629;--small2:#86efac;--other:#2c2442;--other2:#c4b5fd;--park:#3b2f0b;--park2:#facc15;--jr:#3b1f3f;--jr2:#f0abfc}}
 *{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",sans-serif}button,input,a{font:inherit}
 header{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(16px);padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;border-bottom:1px solid var(--line)}
 h1{font-size:19px;line-height:1.25;margin:0}.updated{font-size:10px;color:var(--muted);margin-top:2px;opacity:.78}.updated.stale{color:#f59e0b;opacity:1;font-weight:700}.headRow{display:flex;align-items:flex-start;gap:10px}.headText{flex:1;min-width:0}.themeBtn{flex:0 0 auto;min-height:38px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:11px;padding:0 11px;font-size:12px;font-weight:700}
@@ -24,7 +23,6 @@ main{padding:14px 12px calc(env(safe-area-inset-bottom) + 30px);max-width:900px;
 .filtersWrap{position:relative}.filters{display:flex;gap:7px;overflow:auto;padding:0 28px 12px 0;scrollbar-width:none}.filters::-webkit-scrollbar{display:none}.filtersWrap:after{content:"";position:absolute;right:0;top:0;bottom:12px;width:28px;pointer-events:none;background:linear-gradient(90deg,transparent,var(--bg))}.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;min-height:40px;padding:0 14px}.chip.active{background:var(--accent);border-color:var(--accent);color:white}.chip .venueDot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;flex:none}
 .dotLarge{background:#b42318}.dotMid{background:#175cd3}.dotSmall{background:#027a48}.dotPark{background:#d97706}.dotJR{background:#a21caf}.dotOther{background:#5925dc}
 html[data-theme="dark"] .dotLarge{background:#fca5a5}html[data-theme="dark"] .dotMid{background:#93c5fd}html[data-theme="dark"] .dotSmall{background:#86efac}html[data-theme="dark"] .dotPark{background:#facc15}html[data-theme="dark"] .dotJR{background:#f0abfc}html[data-theme="dark"] .dotOther{background:#c4b5fd}
-@media(prefers-color-scheme:dark){html:not([data-theme]) .dotLarge{background:#fca5a5}html:not([data-theme]) .dotMid{background:#93c5fd}html:not([data-theme]) .dotSmall{background:#86efac}html:not([data-theme]) .dotPark{background:#facc15}html:not([data-theme]) .dotJR{background:#f0abfc}html:not([data-theme]) .dotOther{background:#c4b5fd}}
 
 .monthbar{display:flex;align-items:center;gap:8px;margin:2px 0 10px}.nav{width:44px;height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px}#monthLabel{flex:1;text-align:center;font-weight:800;font-size:18px}.todayBtn{min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 12px}
 .grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;touch-action:pan-y;overscroll-behavior-x:contain}
@@ -62,7 +60,7 @@ html[data-theme="dark"] .dotLarge{background:#fca5a5}html[data-theme="dark"] .do
 </style>
 </head>
 <body>
-<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.3.1</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">自動</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
+<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.3.1</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">ライト</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
 <main>
 <div class="search"><input id="search" type="search" placeholder="イベント名を検索"><button class="clear hidden" id="clearSearch" type="button">×</button></div>
 <div class="filtersWrap"><div class="filters"><button class="chip active" data-f="all">すべて</button><button class="chip" data-f="大ホール"><span class="venueDot dotLarge"></span>大ホール</button><button class="chip" data-f="中ホール"><span class="venueDot dotMid"></span>中ホール</button><button class="chip" data-f="小ホール"><span class="venueDot dotSmall"></span>小ホール</button><button class="chip" data-f="文化の丘公園"><span class="venueDot dotPark"></span>文化の丘公園</button><button class="chip" data-f="JR稲沢駅"><span class="venueDot dotJR"></span>JR稲沢駅</button><button class="chip" data-f="その他"><span class="venueDot dotOther"></span>その他</button></div></div>
@@ -197,21 +195,18 @@ search.oninput=()=>{query=search.value;clear.classList.toggle('hidden',!query);r
 clear.onclick=()=>{search.value='';query='';clear.classList.add('hidden');refresh();search.focus()};
 
 const themeBtn=document.querySelector('#themeToggle');
-let themeMode='system';
-try{themeMode=localStorage.getItem('forum-theme')||'system'}catch(e){}
+let themeMode='light';
+try{themeMode=localStorage.getItem('forum-theme')==='dark'?'dark':'light'}catch(e){}
 function applyTheme(mode){
-  if(mode==='system')document.documentElement.removeAttribute('data-theme');
-  else document.documentElement.setAttribute('data-theme',mode);
+  document.documentElement.setAttribute('data-theme',mode);
   if(themeBtn){
     themeBtn.dataset.mode=mode;
-    themeBtn.textContent=mode==='system'?'自動':mode==='light'?'ライト':'ダーク';
+    themeBtn.textContent=mode==='light'?'ライト':'ダーク';
   }
 }
 applyTheme(themeMode);
 if(themeBtn)themeBtn.onclick=()=>{
-  const order=['system','light','dark'];
-  const cur=themeBtn.dataset.mode||'system';
-  themeMode=order[(order.indexOf(cur)+1)%order.length];
+  themeMode=(themeBtn.dataset.mode||'light')==='light'?'dark':'light';
   try{localStorage.setItem('forum-theme',themeMode)}catch(e){}
   applyTheme(themeMode);
 };
