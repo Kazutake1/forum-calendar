@@ -621,6 +621,18 @@
     ]
   },
   {
+    "date": "2026-10-17",
+    "hall": "文化の丘公園",
+    "time": "10:00〜16:00",
+    "title": "稲沢まつり",
+    "price": "",
+    "venues": [
+      "文化の丘公園"
+    ],
+    "source": "city_event_calendar",
+    "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html"
+  },
+  {
     "date": "2026-10-24",
     "hall": "大ホール",
     "time": "9:30〜20:30",
