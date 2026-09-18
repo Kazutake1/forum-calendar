@@ -25,6 +25,7 @@ HALLS = {"大ホール", "中ホール", "小ホール"}
 
 VENUE_CORRECTIONS = {
     "食品衛生責任者養成講習会": "小ホール",
+    "稲沢まつり": "その他",
 }
 
 EVENT_CORRECTIONS = {
@@ -253,11 +254,13 @@ def expand_dates_from_text(text):
         if len(full)>=2:
             a,b=full[0],full[1]; candidates.extend((a+timedelta(days=i) for i in range((b-a).days+1)) if 0<=(b-a).days<=14 else full)
         else: candidates.extend(full)
-        base=re.search(r"(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日",frag)
+        base=re.search(r"(?:(20\d{2})年|令和\s*(\d+)年)\s*(\d{1,2})月\s*(\d{1,2})日",frag)
         if base:
-            y,m=int(base.group(1)),int(base.group(2))
-            for d in re.findall(r"(?:・|、|,|及び|と)\s*(\d{1,2})日",frag[base.end():]):
-                try: candidates.append(datetime(y,m,int(d)).date())
+            y=int(base.group(1)) if base.group(1) else 2018+int(base.group(2))
+            m=int(base.group(3))
+            # Handle 17日（土曜）、10月18日 and 17日、18日.
+            for extra in re.finditer(r"(?:\s*[（(][^（）()]{0,12}[）)])?\s*(?:・|、|,|及び|と)\s*(?:(\d{1,2})月\s*)?(\d{1,2})日",frag[base.end():]):
+                try: candidates.append(datetime(y,int(extra.group(1) or m),int(extra.group(2))).date())
                 except ValueError: pass
     return sorted(set(d for d in candidates if today-timedelta(days=45)<=d<=today+timedelta(days=420)))[:20]
 
@@ -273,11 +276,25 @@ def parse_time_from_text(text):
 
 def park_event_from_page(url,source):
     r=get(url); soup=BeautifulSoup(r.text,"html.parser"); text=clean(soup.get_text(" ",strip=True),12000)
-    if PARK_NAME not in text: return []
     h1=soup.find("h1"); title=clean(h1.get_text(" ",strip=True) if h1 else (soup.title.get_text(" ",strip=True) if soup.title else ""),240)
     if not title or title in {"イベントカレンダー","イベント"}: return []
-    dates=expand_dates_from_text(text); today=datetime.now().date(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; time=parse_time_from_text(text); price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
-    return [{"date":d.strftime("%Y-%m-%d"),"hall":PARK_NAME,"venues":[PARK_NAME],"time":time,"title":title,"price":price,"source":source,"official_url":url} for d in dates]
+    # The city reuses this official page for the multi-venue festival each year.
+    festival=(title=="稲沢まつり" and urlparse(url).hostname=="www.city.inazawa.aichi.jp" and urlparse(url).path=="/0000000913.html")
+    if not festival and PARK_NAME not in text: return []
+    if festival:
+        # Read the overall dates, not the subsequent individual venue schedules.
+        date_section=re.search(r"開催日\s*(.*?)\s*開催時間",text)
+        time_section=re.search(r"開催時間\s*(.*?)\s*開催場所",text)
+        if not date_section: return []
+        dates=expand_dates_from_text("開催日 "+date_section.group(1))
+        time=parse_time_from_text(time_section.group(1)) if time_section else ""
+        venue="その他"
+    else:
+        dates=expand_dates_from_text(text)
+        time=parse_time_from_text(text)
+        venue=PARK_NAME
+    today=datetime.now().date(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
+    return [{"date":d.strftime("%Y-%m-%d"),"hall":venue,"venues":[venue],"time":time,"title":title,"price":price,"source":source,"official_url":url} for d in dates]
 
 def parse_city_park_events():
     today=datetime.now().date(); seen=set(); events=[]; pages_ok=0
