@@ -1,10 +1,10 @@
 {
   "status": "ok",
-  "updated_at": "2026-09-18T00:21:12+00:00",
-  "updated_at_jst": "2026/09/18 09:21",
-  "last_successful_source_at": "2026-09-18T00:21:12+00:00",
-  "last_successful_forum_at": "2026-09-18T00:21:12+00:00",
-  "last_successful_park_at": "2026-09-18T00:21:12+00:00",
+  "updated_at": "2026-09-19T00:22:28+00:00",
+  "updated_at_jst": "2026/09/19 09:22",
+  "last_successful_source_at": "2026-09-19T00:22:28+00:00",
+  "last_successful_forum_at": "2026-09-19T00:22:28+00:00",
+  "last_successful_park_at": "2026-09-19T00:22:28+00:00",
   "event_count": 80,
   "schedule_replaced": false,
   "notes": [
@@ -12,7 +12,7 @@
     "催事予定表URL: fixed https://www.city.inazawa.aichi.jp/ica/0000004875.html",
     "公式イベント案内 1件",
     "催事予定表OCR 信頼度不足 0件 / しきい値36 のため既存月データ維持",
-    "文化の丘公園（市公式） 1件 / カレンダー13ページ確認",
+    "文化の丘公園（市公式） 2件 / カレンダー13ページ確認",
     "文化の丘公園（観光協会） 0件 / 0ページ確認",
     "JR東海さわやかウォーキング取得失敗: JR東海公式Webに稲沢駅スタートの公開コースなし（既存JRデータ維持）"
   ],
