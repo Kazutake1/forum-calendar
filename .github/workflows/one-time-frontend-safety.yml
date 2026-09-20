@@ -1,0 +1,143 @@
+name: One-time frontend safety fixes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-frontend-safety.yml'
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  apply-verified-fixes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm unchanged baseline and patch only approved cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'Concurrent main update; refusing to patch'; exit 1; }
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          def replace_exact(text, old, new, count=1):
+              found = text.count(old)
+              if found != count:
+                  raise RuntimeError(f'Unexpected source: expected {count} occurrences, found {found}: {old[:80]}')
+              return text.replace(old, new)
+
+          index = Path('index.html')
+          sw = Path('sw.js')
+          if subprocess.check_output(['git', 'hash-object', str(index)], text=True).strip() != '6bb9c842909faf7ac830fb67df243326618dc6da':
+              raise RuntimeError('index.html has changed since review; aborting safely')
+          if subprocess.check_output(['git', 'hash-object', str(sw)], text=True).strip() != '8acd2ef66ea742bfbb9df06f76870523fb634120':
+              raise RuntimeError('sw.js has changed since review; aborting safely')
+          html = index.read_text(encoding='utf-8')
+          html = replace_exact(html, 'a.time.localeCompare(b.time)', "String(a.time ?? '').localeCompare(String(b.time ?? ''))")
+          html = replace_exact(html, "${e.time?' ・ '+e.time:''}", "${e.time?' ・ '+esc(e.time):''}")
+          html = replace_exact(html, "navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).finally(()=>navigator.serviceWorker.register('./sw.js?v=932',{updateViaCache:'none'}));", "navigator.serviceWorker.register('./sw.js?v=933',{updateViaCache:'none'});")
+          html = replace_exact(html, 'Ver.9.3.2', 'Ver.9.3.3', 2)
+          index.write_text(html, encoding='utf-8')
+
+          worker = sw.read_text(encoding='utf-8')
+          worker = replace_exact(worker, "const CACHE='forum-calendar-v9-3-2';", "const CACHE='forum-calendar-v9-3-3';")
+          sw.write_text(worker, encoding='utf-8')
+
+          log = Path('CHANGELOG.md')
+          changelog = log.read_text(encoding='utf-8')
+          entry = ('# 更新履歴\n\n'
+                   '## Ver.9.3.3 — フロントエンド安全性修正（2026-09-20）\n'
+                   '- イベント一覧の開催時間をHTMLエスケープして表示し、外部イベントデータがHTMLとして解釈されないよう修正。\n'
+                   '- Service Workerの一括登録解除を廃止し、当アプリのスコープに対する通常の登録・更新のみ実行。\n'
+                   '- 開催時間が未設定のイベントでも一覧の並べ替えが例外で停止しないよう修正。\n'
+                   '- キャッシュ識別子を更新。イベントデータ、自動更新処理、画面デザインは変更なし。\n\n')
+          changelog = replace_exact(changelog, '# 更新履歴\n\n', entry)
+          log.write_text(changelog, encoding='utf-8')
+          PY
+      - name: Run existing regression tests and JavaScript syntax check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -v
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path('index.html').read_text(encoding='utf-8')
+          match = re.search(r'<script>\s*(.*?)\s*</script>', html, re.S)
+          assert match, 'Inline app script not found'
+          Path('/tmp/forum-app-inline.js').write_text(match.group(1), encoding='utf-8')
+          PY
+          node --check /tmp/forum-app-inline.js
+          node --check manual-events.js
+          node --check sw.js
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const start = html.indexOf('function renderList(){');
+          const end = html.indexOf('\nfunction refresh(){', start);
+          assert(start > 0 && end > start, 'renderList source range');
+          const escaping = html.match(/^const esc=.*;$/m);
+          assert(escaping, 'HTML escaping function');
+          const dom = { '#resultCount': {textContent: ''}, '#eventList': {innerHTML: ''} };
+          const ctx = vm.createContext({
+            EVENTS: [
+              {date:'2026-10-31', title:'不正HTMLの検査', time:'<img src=x onerror=alert(1)>', price:''},
+              {date:'2026-10-31', title:'時間未定', price:''}
+            ],
+            matches: () => true,
+            $: selector => dom[selector],
+            $$: () => [],
+            dateJP: value => value,
+            badges: () => ''
+          });
+          vm.runInContext(escaping[0] + '\n' + html.slice(start, end) + '\nrenderList();', ctx);
+          const output = dom['#eventList'].innerHTML;
+          assert(output.includes('時間未定'), 'missing-time event is shown');
+          assert(output.includes('&lt;img'), 'malicious time is escaped');
+          assert(!output.includes('<img'), 'malicious time must not become markup');
+          assert(!html.includes('serviceWorker.getRegistrations()'), 'must not unregister unrelated workers');
+          assert(html.includes("navigator.serviceWorker.register('./sw.js?v=933'"), 'own worker registration');
+          assert(fs.readFileSync('sw.js', 'utf8').includes('forum-calendar-v9-3-3'), 'new cache generation');
+          console.log('Frontend safety regression tests passed (escape, absent time, SW scope, cache).');
+          JS
+          git diff --check
+      - name: Commit minimal fix and remove this one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'forum-calendar-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -- index.html sw.js CHANGELOG.md
+          git rm -- .github/workflows/one-time-frontend-safety.yml
+          python - <<'PY'
+          import subprocess
+          changed = subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()
+          expected = sorted(['.github/workflows/one-time-frontend-safety.yml', 'index.html', 'sw.js', 'CHANGELOG.md'])
+          assert sorted(changed) == expected, f'Unexpected changed files: {changed}'
+          PY
+          git diff --cached --check
+          git commit -m 'Fix event time rendering, optional time sorting and scoped SW registration'
+          git push origin HEAD:main
+      - name: Request GitHub Pages rebuild for bot commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          response=$(curl --silent --show-error --location --output /tmp/forum-pages-response.json --write-out '%{http_code}' --request POST --header 'Accept: application/vnd.github+json' --header "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/${REPOSITORY}/pages/builds")
+          cat /tmp/forum-pages-response.json
+          test "$response" = '201' || { echo "Pages build request failed: HTTP $response"; exit 1; }
