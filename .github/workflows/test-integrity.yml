@@ -1,0 +1,66 @@
+name: Calendar Integrity Tests
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'manual-events.js'
+      - 'event_integrity.py'
+      - 'update_events.py'
+      - 'update_events_no_ocr.py'
+      - 'manage_manual_events.py'
+      - 'tests/**'
+      - 'events.json'
+      - 'manual_events.json'
+      - '.github/workflows/test-integrity.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r requirements.txt
+      - name: Python data, identity, and archival regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Browser manual merge regression tests
+        run: node tests/test_manual_merge.cjs
+      - name: Verify Python and JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile event_integrity.py update_events.py update_events_no_ocr.py manage_manual_events.py
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html=Path('index.html').read_text(encoding='utf-8')
+          match=re.search(r'<script>\s*(.*?)\s*</script>',html,re.S)
+          assert match, 'Inline script not found'
+          Path('/tmp/forum-calendar-inline.js').write_text(match.group(1),encoding='utf-8')
+          PY
+          node --check /tmp/forum-calendar-inline.js
+          node --check manual-events.js
+          node --check sw.js
+      - name: Validate published event JSON without altering files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from update_events import load_required_events
+          auto=load_required_events(Path('events.json'))
+          manual=json.loads(Path('manual_events.json').read_text(encoding='utf-8'))
+          assert isinstance(manual,list)
+          ids=[event['id'] for event in manual]
+          assert len(ids)==len(set(ids)), 'Duplicate manual event IDs'
+          print(f'Validated {len(auto)} automatic and {len(manual)} manual events')
+          PY
