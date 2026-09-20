@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="文化フォーラム">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-180.png">
-<title>文化フォーラム カレンダー Ver.9.3.1</title>
+<title>文化フォーラム カレンダー Ver.9.3.2</title>
 <style>
 :root{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fffbeb;--park2:#b45309;--jr:#fdf4ff;--jr2:#a21caf}
 html[data-theme="light"]{--bg:#f5f7fb;--card:#fff;--text:#111827;--muted:#667085;--line:#e4e7ec;--accent:#2563eb;--large:#fff1f0;--large2:#b42318;--mid:#eff6ff;--mid2:#175cd3;--small:#ecfdf3;--small2:#027a48;--other:#f4f3ff;--other2:#5925dc;--park:#fffbeb;--park2:#b45309;--jr:#fdf4ff;--jr2:#a21caf}
@@ -60,7 +60,7 @@ html[data-theme="dark"] .dotLarge{background:#fca5a5}html[data-theme="dark"] .do
 </style>
 </head>
 <body>
-<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.3.1</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">ライト</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
+<header><div class="headRow"><div class="headText"><h1>名古屋文理大学文化フォーラム</h1><div class="updated">イベントカレンダー Ver.9.3.2</div><div class="updated" id="autoUpdated">自動更新データを確認中…</div></div><button class="themeBtn" id="themeToggle" type="button">ライト</button></div><div class="tabs"><button class="tab active" data-tab="calendar">カレンダー</button><button class="tab" data-tab="list">イベント一覧</button></div></header>
 <main>
 <div class="search"><input id="search" type="search" placeholder="イベント名を検索"><button class="clear hidden" id="clearSearch" type="button">×</button></div>
 <div class="filtersWrap"><div class="filters"><button class="chip active" data-f="all">すべて</button><button class="chip" data-f="大ホール"><span class="venueDot dotLarge"></span>大ホール</button><button class="chip" data-f="中ホール"><span class="venueDot dotMid"></span>中ホール</button><button class="chip" data-f="小ホール"><span class="venueDot dotSmall"></span>小ホール</button><button class="chip" data-f="文化の丘公園"><span class="venueDot dotPark"></span>文化の丘公園</button><button class="chip" data-f="JR稲沢駅"><span class="venueDot dotJR"></span>JR稲沢駅</button><button class="chip" data-f="その他"><span class="venueDot dotOther"></span>その他</button></div></div>
@@ -271,9 +271,21 @@ async function loadAutoData(){
   view=new Date(now.getFullYear(),now.getMonth(),1);
   showDate(key(now.getFullYear(),now.getMonth(),now.getDate()));
 }
-loadAutoData();
+loadAutoData().then(() => {
+  const script = document.createElement('script');
+  script.src = './manual-events.js?v=932';
+  script.onload = () => window.loadManualForumEvents();
+  script.onerror = () => {
+    const status = document.querySelector('#autoUpdated');
+    if (status) {
+      status.classList.add('stale');
+      status.textContent += ' ・ 手動登録機能の読み込みに失敗';
+    }
+  };
+  document.body.appendChild(script);
+});
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).finally(()=>navigator.serviceWorker.register('./sw.js?v=931',{updateViaCache:'none'}));
+  navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).finally(()=>navigator.serviceWorker.register('./sw.js?v=932',{updateViaCache:'none'}));
 }
 </script>
 </body></html>

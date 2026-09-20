@@ -1,6 +1,6 @@
-const CACHE='forum-calendar-v9-2-3';
-const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png'];
-const DATA_PATHS=['/events.json','/update-meta.json'];
+const CACHE='forum-calendar-v9-3-2';
+const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png','./manual-events.js'];
+const DATA_PATHS=['/events.json','/update-meta.json','/manual_events.json'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)))});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))]))});
 self.addEventListener('fetch',e=>{
