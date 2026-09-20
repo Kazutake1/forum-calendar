@@ -1,0 +1,38 @@
+name: Repair one-time integrity patch anchor
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/repair-high-priority-workflow.yml']
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correct only the patch-script anchor and remove this helper
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || exit 1
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/one-time-high-priority-fixes.yml')
+          text = path.read_text(encoding='utf-8')
+          begin = "js = exact(js, '''    if (raw.match &&"
+          separator = "''', '''    if (raw.match) {"
+          assert text.count(begin) == 1 and text.count(separator) == 1
+          start = text.index(begin)
+          end = text.index(separator, start) + len(separator)
+          replacement = "js = section(js, '    if (raw.match &&', \"    if (raw.source_type === 'city_official'\", '''    if (raw.match) {"
+          path.write_text(text[:start] + replacement + text[end:], encoding='utf-8')
+          PY
+          git config user.name forum-calendar-bot
+          git config user.email actions@users.noreply.github.com
+          git add .github/workflows/one-time-high-priority-fixes.yml
+          git rm .github/workflows/repair-high-priority-workflow.yml
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git diff --cached --check
+          git commit -m 'Correct exact anchor in one-time integrity workflow'
+          git push origin HEAD:main
