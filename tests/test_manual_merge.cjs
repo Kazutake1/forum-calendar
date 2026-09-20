@@ -65,8 +65,6 @@ assert.throws(() => merge([base('開演18:00')], [manual('not-reviewed', '開演
   match: {date:'2026-10-31', title:'演奏会', time:'開演18:00'},
 })]), /根拠|確認|照合/);
 
-console.log('Manual identity/provenance regression tests passed.');
-
 // Verified field priority: event official > city schedule > X, regardless of insertion order.
 const proof=(id,time,source_type,source_url,rank)=>manual(id,time,{source_type,source_url,source_verified:true,event_specific:rank===3,verified_fields:['time']});
 const x=proof('x','開演18:00','x','https://x.com/example/status/123',1);
@@ -86,3 +84,16 @@ result=merge([base('開演18:00',{source_type:'city_schedule',source_url:'https:
  [manual('opening-city','開場17:30／開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})]);
 assert.equal(result.length,1);
 assert.equal(result[0].time,'開場17:30／開演18:00');
+
+// Production regression: validate every currently published manual record against
+// the actual automatic dataset, not only synthetic events. Never write data files.
+const publishedAuto = JSON.parse(fs.readFileSync('events.json', 'utf8'));
+const publishedManual = JSON.parse(fs.readFileSync('manual_events.json', 'utf8'));
+const publishedMerged = merge(publishedAuto, publishedManual);
+assert.ok(Array.isArray(publishedMerged));
+for (const event of publishedManual) {
+  assert.ok(publishedMerged.some(e => e.date === event.date && e.title === event.title &&
+    (e.venues || [e.hall]).includes(event.hall)), `Missing manual event: ${event.id}`);
+}
+console.log(`Manual overlay validated against ${publishedAuto.length} automatic and ${publishedManual.length} real manual records.`);
+console.log('Manual identity/provenance regression tests passed.');
