@@ -1,1 +1,67 @@
-[]
+[
+  {
+    "id": "manual-20261031-meiji-zahatorte",
+    "date": "2026-10-31",
+    "title": "明治まちづくりふれあいコンサート（ザッハトルテ）",
+    "hall": "中ホール",
+    "venues": [
+      "中ホール"
+    ],
+    "time": "13:00〜（開場12:30）",
+    "price": "要整理券（事前申込）",
+    "source_type": "other",
+    "source_url": "https://tomarutomoharu.com/category/info/live/",
+    "x_source_url": "https://x.com/zahatorte/status/2100831311909052522",
+    "city_notice_url": "https://www.city.inazawa.aichi.jp/0000005962.html",
+    "source_note": "催事名は稲沢市広報掲載名。出演者・会場・時刻・整理券は出演者の案内およびX情報に基づく。個別項目を市公式確認済みとは扱わない。"
+  },
+  {
+    "id": "manual-20261114-nagoya-bunri-70th-lecture",
+    "date": "2026-11-14",
+    "title": "名古屋文理 学園創立70周年記念講演会（遠藤英俊先生）",
+    "hall": "中ホール",
+    "venues": [
+      "中ホール"
+    ],
+    "time": "16:00〜17:30",
+    "price": "",
+    "source_type": "other",
+    "source_url": "https://www.nagoya-bunri.ac.jp/takigawa_gakuen/bunri-70th-anniversary/",
+    "hall_source_type": "x",
+    "hall_source_url": "https://x.com/NBU_renkei/status/2100835363795423314",
+    "time_source_type": "x",
+    "time_source_url": "https://x.com/NBU_renkei/status/2100835363795423314",
+    "source_note": "大学公式サイトで催事・開催日・施設・講演者を確認。中ホール指定と16:00〜17:30は提供されたX情報に基づく。稲沢市公式サイトで中ホールを確認済みとは扱わない。"
+  },
+  {
+    "id": "manual-20261119-inazawa-women-charity",
+    "date": "2026-11-19",
+    "title": "稲沢商工会議所女性会チャリティーコンサート「母娘の愛で紡ぐ音の花束」",
+    "hall": "小ホール",
+    "venues": [
+      "小ホール"
+    ],
+    "time": "13:30〜",
+    "price": "500円（当日券なし）",
+    "source_type": "x",
+    "source_url": "https://x.com/inazawacatv/status/2096834603755639247",
+    "city_notice_url": "https://www.city.inazawa.aichi.jp/0000005962.html",
+    "source_note": "催事名は稲沢市広報にも掲載。日時・小ホール・料金・当日券なしは稲沢ケーブルテレビのX告知情報に基づく。個別項目を市公式確認済みとは扱わない。"
+  },
+  {
+    "id": "manual-20270220-kahara-fantastic-songs",
+    "date": "2027-02-20",
+    "title": "華原朋美 Concert Tour ♡Fantastic songs♡",
+    "hall": "大ホール",
+    "venues": [
+      "大ホール"
+    ],
+    "time": "16:30〜（開場16:00）",
+    "price": "指定席9,300円（税込）",
+    "source_type": "other",
+    "source_url": "https://kahala-tomomi-live.com/",
+    "hall_source_type": "promoter",
+    "hall_source_url": "https://www.sundayfolk.com/artist/000174",
+    "source_note": "開催日・開場開演・料金はツアー公式サイト、ホール区分はサンデーフォークの公演案内で確認。市公式サイト確認済みとは扱わない。"
+  }
+]
