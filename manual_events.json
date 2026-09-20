@@ -1,5 +1,21 @@
 [
   {
+    "id": "manual-20261011-suyama-ballet-turandot",
+    "date": "2026-10-11",
+    "title": "須山仁美クラシックバレエ定期公演2026「TURANDOT」「Mischief of Puck」",
+    "hall": "大ホール",
+    "venues": [
+      "大ホール"
+    ],
+    "time": "開場16:00／開演16:30",
+    "price": "",
+    "source_type": "other",
+    "source_url": "https://www.chacott-jp.com/news/stage/information/detail032158.html",
+    "x_source_url": "https://x.com/uno_n/status/2074413366593077352",
+    "official_url": "https://suyama-ballet.com/news/定期公演2026/",
+    "source_note": "開催日・大ホール・開場開演・演目および主催者の正式名称はチャコットの公演案内とチケットぴあの掲載内容で照合。主催者公式の個別ページURLはチャコットが掲載するリンク（直接のページ本文は未確認）。Grok提供のX投稿は『須山久美』と表記しているが、チャコット・チケットぴあは『須山仁美』と記載。料金は未確認のため空欄。"
+  },
+  {
     "id": "manual-20261031-meiji-zahatorte",
     "date": "2026-10-31",
     "title": "明治まちづくりふれあいコンサート（ザッハトルテ）",
