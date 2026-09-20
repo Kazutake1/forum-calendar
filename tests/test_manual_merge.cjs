@@ -129,6 +129,64 @@ async function testManualRecovery() {
   assert.equal(failure.getRefreshed(), 0);
   assert.ok(failure.status.textContent.includes('取得失敗'));
   assert.ok(failure.status.textContent.includes('network unavailable'));
+  // iOS WebKit can report "Load failed" after fetch resolves, during response.json().
+  let attempts = 0;
+  const brokenBody = { ok: true, headers: { get: () => null },
+    json: async () => { throw Error('Load failed'); } };
+  const recovered = makePage(async () => (++attempts === 1 ? brokenBody : response), null);
+  await recovered.page.window.loadManualForumEvents();
+  assert.equal(attempts, 2);
+  assert.equal(recovered.page.EVENTS.length, publishedMerged.length);
+  assert.equal(recovered.getRefreshed(), 1);
+  assert.ok(!recovered.status.textContent.includes('失敗'));
+
+  const fromCache = makePage(async () => brokenBody, response);
+  await fromCache.page.window.loadManualForumEvents();
+  assert.equal(fromCache.page.EVENTS.length, publishedMerged.length);
+  assert.equal(fromCache.getRefreshed(), 1);
+  assert.ok(fromCache.status.textContent.includes('保存済みデータを表示'));
+
+  const noBodyOrCache = makePage(async () => brokenBody, null);
+  await noBodyOrCache.page.window.loadManualForumEvents();
+  assert.equal(noBodyOrCache.page.EVENTS.length, publishedAuto.length);
+  assert.ok(noBodyOrCache.status.textContent.includes('JSON解析失敗（Load failed）'));
   console.log('Manual recovery integration tests passed.');
 }
 testManualRecovery().catch(e => { console.error(e); process.exitCode = 1; });
+
+// Test the service worker response-body path, not just the page's fetch() mock.
+async function testManualServiceWorker() {
+  const run = async (fetcher, cached, put) => {
+    const listeners = {};
+    const sw = vm.createContext({
+      self: { location: { origin: 'https://calendar.example' },
+        addEventListener: (name, fn) => { listeners[name] = fn; } },
+      URL, Response, Headers, console, fetch: fetcher,
+      caches: { match: async () => cached, open: async () => ({ put }) }
+    });
+    vm.runInContext(fs.readFileSync('sw.js', 'utf8'), sw);
+    let pending;
+    listeners.fetch({ request: { method: 'GET',
+      url: 'https://calendar.example/forum-calendar/manual_events.json?ts=1' },
+      respondWith: p => { pending = p; } });
+    assert.ok(pending, 'Manual request was not intercepted');
+    return pending;
+  };
+  const cached = new Response(JSON.stringify(publishedManual), { status: 200 });
+  const interrupted = { ok: true, status: 200,
+    text: async () => { throw Error('Load failed'); } };
+  let result = await run(async () => interrupted, cached, async () => {});
+  assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
+  assert.equal((await result.json()).length, publishedManual.length);
+
+  let key = '';
+  result = await run(async () => new Response(JSON.stringify(publishedManual), { status: 200 }), null,
+    async (path, value) => { key = path; assert.equal((await value.json()).length, publishedManual.length); });
+  assert.equal(key, './manual_events.json');
+  assert.equal((await result.json()).length, publishedManual.length);
+  result = await run(async () => new Response(JSON.stringify(publishedManual), { status: 200 }), null,
+    async () => { throw Error('cache quota'); });
+  assert.equal((await result.json()).length, publishedManual.length);
+  console.log('Service Worker interrupted-body regression tests passed.');
+}
+testManualServiceWorker().catch(e => { console.error(e); process.exitCode = 1; });

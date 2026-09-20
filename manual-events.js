@@ -157,26 +157,40 @@
   const status = document.querySelector('#autoUpdated');
   let stage = '取得';
   try {
-    let response;
-    let usingCache = false;
-    try {
-      response = await fetch('./manual_events.json?ts=' + Date.now(), { cache: 'no-store' });
-    } catch (networkError) {
-      let cached = null;
+    let manual, loaded = false, usingCache = false, lastError, lastStage = stage;
+    // WebKit may resolve fetch() but fail while reading its response body.
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        if (window.caches && typeof window.caches.match === 'function') {
-          cached = await window.caches.match('./manual_events.json');
-        }
-      } catch (_) { /* CacheStorage may be unavailable in private browsing. */ }
-      if (!cached) throw networkError;
-      response = cached;
-      usingCache = true;
+        stage = '取得';
+        const response = await fetch(`./manual_events.json?ts=${Date.now()}-${attempt}`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        stage = 'JSON解析';
+        manual = await response.json();
+        usingCache = Boolean(response.headers && response.headers.get &&
+          response.headers.get('X-Forum-Manual-Cache') === 'stale');
+        loaded = true;
+        break;
+      } catch (error) {
+        lastError = error;
+        lastStage = stage;
+        if (attempt === 0) console.warn('手動イベントの応答を再取得します', error);
+      }
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    if (response.headers && typeof response.headers.get === 'function' &&
-        response.headers.get('X-Forum-Manual-Cache') === 'stale') usingCache = true;
-    stage = 'JSON解析';
-    const manual = await response.json();
+    if (!loaded) {
+      try {
+        stage = '保存済みJSON解析';
+        const cached = window.caches && typeof window.caches.match === 'function'
+          ? await window.caches.match('./manual_events.json') : null;
+        if (cached && cached.ok) {
+          manual = await cached.json();
+          usingCache = true;
+          loaded = true;
+        }
+      } catch (cacheError) {
+        console.warn('保存済み手動データの読み込みにも失敗しました', cacheError);
+      }
+    }
+    if (!loaded) { stage = lastStage; throw lastError || new Error('手動データを取得できません'); }
     stage = '統合';
     const merged = merge(EVENTS, manual);
     const before = EVENTS;

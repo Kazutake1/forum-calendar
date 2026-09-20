@@ -1,4 +1,4 @@
-const CACHE='forum-calendar-v9-3-5';
+const CACHE='forum-calendar-v9-3-6';
 const MANUAL_DATA='./manual_events.json';
 const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png','./manual-events.js',MANUAL_DATA];
 const DATA_PATHS=['/events.json','/update-meta.json','/manual_events.json'];
@@ -9,27 +9,35 @@ self.addEventListener('fetch',e=>{
   const url=new URL(req.url);if(url.origin!==self.location.origin)return;
   const isManual=url.pathname.endsWith('/manual_events.json');
   if(isManual){
-    e.respondWith((async()=>{
-      try{
-        const response=await fetch(req,{cache:'no-store'});
-        if(response.ok){
-          // Use the canonical path as the cache key; the request has a timestamp query.
-          try { await (await caches.open(CACHE)).put(MANUAL_DATA,response.clone()); }
-          catch (cacheError) { console.warn('手動データのキャッシュ保存を省略',cacheError); }
+  e.respondWith((async()=>{
+    try {
+      const response=await fetch(req,{cache:'no-store'});
+      if(!response.ok||response.status!==200)return response;
+      // Read the body once before returning it; do not race two cloned streams.
+      const body=await response.text();
+      if(!Array.isArray(JSON.parse(body)))throw new Error('手動イベントJSONは配列である必要があります');
+      const headers={'Content-Type':'application/json; charset=utf-8'};
+      try {
+        await (await caches.open(CACHE)).put(MANUAL_DATA,new Response(body,{status:200,headers}));
+      } catch(cacheError) { console.warn('手動データのキャッシュ保存を省略',cacheError); }
+      return new Response(body,{status:200,headers});
+    } catch(error) {
+      // Includes failures after fetch resolves but its response body is interrupted.
+      try {
+        const cached=await caches.match(MANUAL_DATA);
+        if(cached&&cached.ok){
+          const body=await cached.text();
+          if(Array.isArray(JSON.parse(body)))return new Response(body,{status:200,headers:{
+            'Content-Type':'application/json; charset=utf-8',
+            'X-Forum-Manual-Cache':'stale'
+          }});
         }
-        return response;
-      }catch(error){
-        const cached=await (await caches.open(CACHE)).match(MANUAL_DATA);
-        if(!cached)throw error;
-        const headers=new Headers(cached.headers);
-        headers.set('X-Forum-Manual-Cache','stale');
-        return new Response(await cached.arrayBuffer(),{
-          status:cached.status,statusText:cached.statusText,headers
-        });
-      }
-    })());
-    return;
-  }
+      } catch(cacheError) { console.warn('保存済み手動データも読み込めません',cacheError); }
+      throw error;
+    }
+  })());
+  return;
+}
   const isData=DATA_PATHS.some(p=>url.pathname.endsWith(p));
   if(isData){e.respondWith(fetch(req,{cache:'no-store'}));return;}
   e.respondWith(fetch(req,{cache:'no-store'}).then(r=>{if(r&&r.ok){const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c))}return r}).catch(()=>caches.match(req,{ignoreSearch:true}).then(r=>r||caches.match('./index.html'))));
