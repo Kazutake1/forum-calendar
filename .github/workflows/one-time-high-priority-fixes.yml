@@ -1,0 +1,351 @@
+name: One-time high-priority event integrity fixes
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-high-priority-fixes.yml'
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: high-priority-integrity-fixes
+  cancel-in-progress: false
+
+jobs:
+  verify-and-apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install existing dependencies
+        run: pip install -r requirements.txt
+      - name: Patch only the reviewed code with exact anchors
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || { echo 'Concurrent update: abort'; exit 1; }
+          python - <<'PY'
+          from pathlib import Path
+          def exact(text, old, new, count=1):
+              found = text.count(old)
+              if found != count:
+                  raise RuntimeError(f'Unexpected source: {old[:70]!r} count={found}, expected {count}')
+              return text.replace(old, new)
+          def section(text, start, end, replacement):
+              if text.count(start) != 1 or text.count(end) != 1:
+                  raise RuntimeError(f'Unexpected section: {start} / {end}')
+              a = text.index(start)
+              b = text.index(end, a)
+              return text[:a] + replacement + text[b:]
+          updater = Path('update_events.py')
+          code = updater.read_text(encoding='utf-8')
+          code = exact(code, 'import requests\n', 'import requests\nfrom event_integrity import same_performance, combine_performance, normalize_title\n')
+          code = exact(code, 'def valid_date(s):\n', '''def load_required_events(path):
+              """Abort rather than replacing a missing, corrupt or malformed saved dataset."""
+              try:
+                  data = json.loads(path.read_text(encoding="utf-8"))
+              except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                  raise RuntimeError(f"保存済みイベントを読み込めません。更新を停止します: {path}") from exc
+              if not isinstance(data, list) or not data:
+                  raise RuntimeError(f"保存済みイベントが空または配列ではありません。更新を停止します: {path}")
+              for item in data:
+                  if (not isinstance(item, dict) or not isinstance(item.get("date"), str)
+                          or not valid_date(item["date"]) or not isinstance(item.get("title"), str)
+                          or not item["title"].strip() or not isinstance(item.get("hall"), str)
+                          or not item["hall"].strip()):
+                      raise RuntimeError(f"保存済みイベントに不正な項目があります。更新を停止します: {path}")
+              return data
+
+          def valid_date(s):
+          ''')
+          code = exact(code, '    if not valid_date(out["date"]) or len(out["title"])<2: return None\n', '''    # Keep stable performance IDs and per-field evidence across scheduled runs.
+              for name in ("event_id", "performance_id", "source_type", "source_url", "source_verified", "verified_fields", "field_sources"):
+                  if name in e:
+                      out[name] = e[name]
+              for name in ("title", "date", "hall", "time", "price", "official_url"):
+                  for suffix in ("_source_type", "_source_url", "_source_verified"):
+                      key_name = name + suffix
+                      if key_name in e:
+                          out[key_name] = e[key_name]
+              if not valid_date(out["date"]) or len(out["title"])<2: return None
+          ''')
+          code = section(code, 'def key(e): return ', 'def ym(e):', '''def key(e):
+              return (e.get("date", ""), normalize_title(e.get("title", "")))
+
+          def dedupe(events):
+              """Consolidate only proven identical performances, not whole events."""
+              result = []
+              grouped = {}
+              for raw in events:
+                  event = sanitize_event(raw)
+                  if not event:
+                      continue
+                  group_key = key(event)
+                  candidates = [index for index in grouped.get(group_key, [])
+                                if same_performance(result[index], event)]
+                  # Ambiguous matches are preserved for human review, never guessed.
+                  if len(candidates) == 1:
+                      index = candidates[0]
+                      result[index] = combine_performance(result[index], event)
+                  else:
+                      grouped.setdefault(group_key, []).append(len(result))
+                      result.append(event)
+              return sorted(result, key=lambda event: (event["date"], str(event.get("time") or ""), event["title"]))
+
+          ''')
+          code = exact(code, 'old=dedupe(load_json(EVENTS_FILE,[])); old_meta=', 'old=dedupe(load_required_events(EVENTS_FILE)); old_meta=')
+          updater.write_text(code, encoding='utf-8')
+
+          manual = Path('manual-events.js')
+          js = manual.read_text(encoding='utf-8')
+          js = section(js, '  const verifiedCity = event => {', '  const venues = event =>', '''  const verifiedCity = event => {
+              const url = sourceUrl(event);
+              return event.source_type === 'city_official' && event.source_verified === true &&
+                Boolean(url) && new URL(url).hostname === 'www.city.inazawa.aichi.jp';
+            };
+            const fieldEvidence = (event, field) => {
+              const stored = event.field_sources && event.field_sources[field];
+              if (stored && typeof stored === 'object') return stored;
+              const allowed = event.verified_fields;
+              return {
+                source_type: event[`${field}_source_type`] || event.source_type || event.source || 'other',
+                source_url: event[`${field}_source_url`] || event.source_url || event.official_url || '',
+                verified: (event[`${field}_source_verified`] ?? event.source_verified) === true &&
+                  (!Array.isArray(allowed) || allowed.includes(field)),
+              };
+            };
+            const verifiedCityField = (event, field) => {
+              const evidence = fieldEvidence(event, field);
+              try {
+                return evidence.verified === true &&
+                  new URL(evidence.source_url).hostname === 'www.city.inazawa.aichi.jp' &&
+                  new URL(evidence.source_url).protocol === 'https:' &&
+                  String(evidence.source_type || '').split('+').some(type =>
+                    ['city_official', 'event_guide', 'city_event_calendar', 'schedule_ocr'].includes(type));
+              } catch (_) { return false; }
+            };
+          ''')
+          js = section(js, '  const sameIdentity = ', '  const validated = ', '''  const timeParts = value => {
+              const text = String(value || '').normalize('NFKC');
+              const collect = pattern => [...text.matchAll(pattern)]
+                .map(match => [Number(match[1]), Number(match[2])])
+                .filter(([h,m]) => h < 24 && m < 60)
+                .map(([h,m]) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+              let starts = collect(/(?:開演|開始)\\s*(\\d{1,2}):(\\d{2})/g);
+              const doors = collect(/開場\\s*(\\d{1,2}):(\\d{2})/g);
+              if (!starts.length && !doors.length) {
+                const first = text.match(/^\\s*(\\d{1,2}):(\\d{2})/);
+                if (first) {
+                  starts = [`${first[1].padStart(2,'0')}:${first[2]}`];
+                  if (text.includes('/')) starts = collect(/(\\d{1,2}):(\\d{2})/g);
+                }
+              }
+              return {starts: [...new Set(starts)], doors: [...new Set(doors)]};
+            };
+            const sameShowtime = (a, b) => {
+              if (a.performance_id && b.performance_id) return a.performance_id === b.performance_id;
+              const x = timeParts(a.time), y = timeParts(b.time);
+              if (x.starts.length === 1 && y.starts.length === 1)
+                return x.starts[0] === y.starts[0];
+              if (a.time && b.time && a.time === b.time) return true;
+              if (!x.starts.length && !y.starts.length && x.doors.length === 1 && y.doors.length === 1)
+                return x.doors[0] === y.doors[0];
+              return !a.time && !b.time && Boolean(a.official_url) && a.official_url === b.official_url;
+            };
+            const sameIdentity = (existing, match, requireTime) => existing.date === match.date &&
+              normalizeTitle(existing.title) === normalizeTitle(match.title) &&
+              (!match.hall || venues(existing).includes(match.hall)) &&
+              (!requireTime || sameShowtime(existing, match));
+          ''')
+          js = exact(js, '''    if (raw.match && (!validDate(raw.match.date) ||
+                  typeof raw.match.title !== 'string' || !raw.match.title.trim())) {
+                  throw new Error('重複照合情報の形式が不正です');
+                }
+          ''', '''    if (raw.match) {
+                  const link = raw.match.evidence_url;
+                  let validEvidence = false;
+                  try { validEvidence = new URL(link).protocol === 'https:'; } catch (_) {}
+                  if (!validDate(raw.match.date) || typeof raw.match.title !== 'string' ||
+                      !raw.match.title.trim() || raw.match.confirmed !== true || !validEvidence ||
+                      (raw.match.correct_fields !== undefined &&
+                        (!Array.isArray(raw.match.correct_fields) ||
+                         raw.match.correct_fields.some(field => !['date','title','hall','time','price','official_url'].includes(field))))) {
+                    throw new Error('重複照合には人が確認した対象・根拠URLが必要です');
+                  }
+                }
+                if (raw.distinct_performance) {
+                  let validEvidence = false;
+                  try { validEvidence = new URL(raw.distinct_performance_evidence_url).protocol === 'https:'; } catch (_) {}
+                  if (raw.match || typeof raw.performance_id !== 'string' || !raw.performance_id.trim() || !validEvidence)
+                    throw new Error('別公演のID・根拠URLを確認してください');
+                }
+          ''')
+          js = section(js, '  function merge(auto, manual) {', '  window.mergeForumEvents = merge;', '''  function merge(auto, manual) {
+              if (!Array.isArray(auto) || !Array.isArray(manual)) throw new Error('イベント配列が不正です');
+              const result = auto.map(event => ({ ...event }));
+              const ids = new Set();
+              for (const raw of manual) {
+                const incoming = validated(raw, ids);
+                const find = (target, requireTime) => result.map((event, index) =>
+                  sameIdentity(event, target, requireTime) ? index : -1).filter(index => index >= 0);
+                let matches = incoming.distinct_performance ? [] : find(incoming, true);
+                if (incoming.match) {
+                  matches = find(incoming.match, Boolean(incoming.match.time));
+                  if (matches.length !== 1) throw new Error(`確認済みの照合対象が一意ではありません: ${incoming.title}`);
+                }
+                if (!matches.length && find(incoming, false).length && !incoming.distinct_performance)
+                  throw new Error(`時間・開場・開演の相違について確認が必要です: ${incoming.title}`);
+                if (matches.length > 1) throw new Error(`重複候補が複数あります: ${incoming.title}`);
+                if (!matches.length) { result.push(incoming); continue; }
+                const index = matches[0], current = result[index];
+                const combined = { ...current, field_sources: {...(current.field_sources || {})} };
+                const corrected = Array.isArray(incoming.match?.correct_fields) ? incoming.match.correct_fields : [];
+                for (const field of ['date', 'title', 'hall', 'time', 'price', 'official_url']) {
+                  const proposed = incoming[field];
+                  if (proposed === undefined || proposed === null || proposed === '') continue;
+                  const currentVerified = verifiedCityField(current, field);
+                  const incomingVerified = verifiedCityField(incoming, field);
+                  if (!current[field] || (incomingVerified && !currentVerified) ||
+                      (incoming.match && corrected.includes(field) && !currentVerified)) {
+                    combined[field] = proposed;
+                    combined.field_sources[field] = fieldEvidence(incoming, field);
+                    if (field === 'hall') combined.venues = venues(incoming);
+                  }
+                }
+                result[index] = combined;
+              }
+              return result;
+            }
+          ''')
+          manual.write_text(js, encoding='utf-8')
+
+          index = Path('index.html')
+          page = index.read_text(encoding='utf-8')
+          page = exact(page, 'Ver.9.3.3', 'Ver.9.3.4', 2)
+          page = exact(page, "manual-events.js?v=932", "manual-events.js?v=934")
+          page = exact(page, "sw.js?v=933", "sw.js?v=934")
+          index.write_text(page, encoding='utf-8')
+          worker = Path('sw.js')
+          worker.write_text(exact(worker.read_text(encoding='utf-8'), "forum-calendar-v9-3-3", "forum-calendar-v9-3-4"), encoding='utf-8')
+
+          ci = Path('.github/workflows/test-integrity.yml')
+          if ci.exists(): raise RuntimeError('Unexpected CI workflow path already exists')
+          ci.write_text('''name: Calendar Integrity Tests
+          on:
+            push:
+              branches: [main]
+              paths: ['index.html', 'manual-events.js', 'update_events.py', 'event_integrity.py', 'sw.js', 'tests/**', '.github/workflows/test-integrity.yml']
+            pull_request:
+              branches: [main]
+          permissions:
+            contents: read
+          jobs:
+            test:
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@v4
+                - uses: actions/setup-python@v5
+                  with:
+                    python-version: '3.12'
+                - uses: actions/setup-node@v4
+                  with:
+                    node-version: '22'
+                - run: pip install -r requirements.txt
+                - run: python -m unittest discover -s tests -v
+                - run: node tests/test_manual_merge.cjs
+                - name: Validate browser scripts
+                  run: |
+                    python - <<'SCRIPT'
+                    import re
+                    from pathlib import Path
+                    html = Path('index.html').read_text(encoding='utf-8')
+                    match = re.search(r'<script>\\s*(.*?)\\s*</script>', html, re.S)
+                    assert match
+                    Path('/tmp/forum-calendar-inline.js').write_text(match.group(1), encoding='utf-8')
+                    SCRIPT
+                    node --check /tmp/forum-calendar-inline.js
+                    node --check manual-events.js
+                    node --check sw.js
+          ''', encoding='utf-8')
+          log = Path('CHANGELOG.md')
+          old = log.read_text(encoding='utf-8')
+          entry = ('# 更新履歴\n\n## Ver.9.3.4 — 公演単位の判定と出典・更新保護（2026-09-20）\n'
+                   '- 保存済みevents.jsonが欠落・空・破損した場合は自動更新を停止し、元データを保護。\n'
+                   '- 自動統合は同一公演の根拠がある場合に限定。別開演時刻・時刻不明は推測で統合せず、開場と開演を区別。公演IDを任意で保持。\n'
+                   '- 市公式の確認状態を項目ごとに判定し、公式と確認されていない情報を優先しない。訂正の統合には確認済み照合先・根拠URLが必要。\n'
+                   '- Python・JavaScriptの回帰テストと変更時CIを追加。イベントデータの内容・画面デザイン・自動更新時刻は変更なし。\n\n')
+          log.write_text(exact(old, '# 更新履歴\n\n', entry), encoding='utf-8')
+          PY
+      - name: Run Python, JavaScript and compatibility regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -v
+          node tests/test_manual_merge.cjs
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path('index.html').read_text(encoding='utf-8')
+          match = re.search(r'<script>\s*(.*?)\s*</script>', html, re.S)
+          assert match
+          Path('/tmp/forum-calendar-inline.js').write_text(match.group(1), encoding='utf-8')
+          PY
+          node --check /tmp/forum-calendar-inline.js
+          node --check manual-events.js
+          node --check sw.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from update_events import dedupe, load_required_events
+          original = Path('events.json').read_bytes()
+          original_manual = Path('manual_events.json').read_bytes()
+          current = load_required_events(Path('events.json'))
+          assert len(current) > 0 and isinstance(dedupe(current), list)
+          a = {'date':'2026-11-01','hall':'中ホール','title':'同名コンサート','time':'開演10:00'}
+          b = dict(a, time='開演18:00')
+          assert len(dedupe([a,b])) == 2
+          assert len(dedupe([a,dict(a)])) == 1
+          assert Path('events.json').read_bytes() == original
+          assert Path('manual_events.json').read_bytes() == original_manual
+          print('Stored event compatibility and non-mutation checks passed.')
+          PY
+          git diff --check
+      - name: Commit only approved source/test files and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name forum-calendar-bot
+          git config user.email actions@users.noreply.github.com
+          git add -- update_events.py manual-events.js index.html sw.js CHANGELOG.md .github/workflows/test-integrity.yml
+          git rm -- .github/workflows/one-time-high-priority-fixes.yml
+          python - <<'PY'
+          import subprocess
+          changed = subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          expected = ['.github/workflows/one-time-high-priority-fixes.yml','.github/workflows/test-integrity.yml','CHANGELOG.md','index.html','manual-events.js','sw.js','update_events.py']
+          assert sorted(changed) == sorted(expected), (changed, expected)
+          PY
+          git diff --cached --check
+          git commit -m 'Protect saved events and distinguish reviewed performances and official fields'
+          git push origin HEAD:main
+      - name: Request Pages rebuild after bot commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          response=$(curl --silent --show-error --location --output /tmp/pages-response.json --write-out '%{http_code}' --request POST --header 'Accept: application/vnd.github+json' --header "Authorization: Bearer ${GH_TOKEN}" "https://api.github.com/repos/${REPOSITORY}/pages/builds")
+          cat /tmp/pages-response.json
+          test "$response" = '201' || { echo "Pages build request failed: HTTP $response"; exit 1; }
