@@ -1,0 +1,91 @@
+name: Monthly Manual Event Housekeeping
+
+on:
+  schedule:
+    # First of each month, 10:10 JST (01:10 UTC).
+    - cron: '10 1 1 * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'manage_manual_events.py'
+      - 'tests/test_manage_manual_events.py'
+      - '.github/workflows/monthly-manual-events.yml'
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: monthly-manual-events
+  cancel-in-progress: false
+
+jobs:
+  archive-and-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run archive and duplicate review tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Refresh main without overwriting concurrent edits
+        run: |
+          git fetch origin main
+          git checkout -B main origin/main
+
+      - name: Archive expired records and write review report
+        run: |
+          python manage_manual_events.py
+          cat reports/manual-event-review.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit only manual data, archives, and the report
+        id: persist
+        shell: bash
+        run: |
+          git config user.name "forum-calendar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- manual_events.json reports/manual-event-review.md
+          shopt -s nullglob
+          archives=(archive/manual_events_*.json)
+          if ((${#archives[@]})); then
+            git add -- "${archives[@]}"
+          fi
+          if git diff --cached --quiet; then
+            echo "No housekeeping changes"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "Archive expired manual events and refresh monthly review"
+            # A concurrent push is rejected rather than silently overwritten.
+            git push origin HEAD:main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Explicitly request Pages rebuild after bot commit
+        if: steps.persist.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          # A GITHUB_TOKEN push alone does NOT start a GitHub Pages build.
+          response=$(curl --silent --show-error --location --output /tmp/pages-build-response.json \
+            --write-out '%{http_code}' --request POST \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${REPOSITORY}/pages/builds")
+          cat /tmp/pages-build-response.json
+          if [[ "$response" != "201" ]]; then
+            echo "Pages build request failed (HTTP $response). GitHub data may be newer than the published app." >&2
+            exit 1
+          fi
+          echo "Pages build requested for updated manual data." >> "$GITHUB_STEP_SUMMARY"
