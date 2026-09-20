@@ -1,0 +1,59 @@
+name: Apply opening/start compatibility fix once
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/one-time-opening-compat.yml']
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch compatible time descriptions and verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || exit 1
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('event_integrity.py');s=p.read_text(encoding='utf-8')
+          old='elif old and new and old != new and old_rank == new_rank and old_rank > 0:'
+          new='''elif (old and new and old != new and old_rank == new_rank and old_rank > 0
+                and not (field == "time" and len(time_parts(old)[0]) == len(time_parts(new)[0]) == 1
+                         and time_parts(old)[0] == time_parts(new)[0])):'''
+          assert s.count(old)==1
+          p.write_text(s.replace(old,new),encoding='utf-8')
+          p=Path('manual-events.js');s=p.read_text(encoding='utf-8')
+          old='else if(current[field]!==value&&a===b&&a>0&&!corrected.includes(field))'
+          new='''else if(current[field]!==value&&a===b&&a>0&&!corrected.includes(field)&&
+                     !(field==='time'&&timeParts(current[field]).starts.length===1&&
+                       timeParts(value).starts.length===1&&
+                       timeParts(current[field]).starts[0]===timeParts(value).starts[0]))'''
+          assert s.count(old)==1
+          p.write_text(s.replace(old,new),encoding='utf-8')
+          p=Path('tests/test_manual_merge.cjs');s=p.read_text(encoding='utf-8')
+          s+='''\n// Equal-tier reports with the same start are compatible even when only one gives door time.\nresult=merge([base('開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})],\n [manual('opening-city','開場17:30／開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})]);\nassert.equal(result.length,1);\nassert.equal(result[0].time,'開場17:30／開演18:00');\n'''
+          p.write_text(s,encoding='utf-8')
+          PY
+          python -m unittest discover -s tests -v
+          node tests/test_manual_merge.cjs
+          python -m py_compile event_integrity.py update_events.py
+          node --check manual-events.js
+          git diff --check
+          test "$(git diff --name-only | wc -l)" -eq 3
+          git config user.name forum-calendar-bot
+          git config user.email actions@users.noreply.github.com
+          git add event_integrity.py manual-events.js tests/test_manual_merge.cjs
+          git commit -m 'Treat opening and start details as compatible when showtime matches'
+          git push origin HEAD:main
