@@ -154,19 +154,46 @@
     return previousLinkInfo(event);
   };
   window.loadManualForumEvents = async () => {
-    const status = document.querySelector('#autoUpdated');
+  const status = document.querySelector('#autoUpdated');
+  let stage = '取得';
+  try {
+    let response;
+    let usingCache = false;
     try {
-      const response = await fetch('./manual_events.json?ts=' + Date.now(), { cache: 'no-store' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const manual = await response.json();
-      EVENTS = merge(EVENTS, manual);
-      refresh();
-    } catch (error) {
-      console.error('手動イベントの取得・統合に失敗しました', error);
-      if (status) {
-        status.classList.add('stale');
-        status.textContent += ' ・ 手動登録データの取得・統合に失敗';
-      }
+      response = await fetch('./manual_events.json?ts=' + Date.now(), { cache: 'no-store' });
+    } catch (networkError) {
+      let cached = null;
+      try {
+        if (window.caches && typeof window.caches.match === 'function') {
+          cached = await window.caches.match('./manual_events.json');
+        }
+      } catch (_) { /* CacheStorage may be unavailable in private browsing. */ }
+      if (!cached) throw networkError;
+      response = cached;
+      usingCache = true;
     }
-  };
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (response.headers && typeof response.headers.get === 'function' &&
+        response.headers.get('X-Forum-Manual-Cache') === 'stale') usingCache = true;
+    stage = 'JSON解析';
+    const manual = await response.json();
+    stage = '統合';
+    const merged = merge(EVENTS, manual);
+    const before = EVENTS;
+    EVENTS = merged;
+    stage = '表示';
+    try { refresh(); } catch (error) { EVENTS = before; throw error; }
+    if (usingCache && status) {
+      status.classList.add('stale');
+      status.textContent += ' ・ 手動登録：通信できないため保存済みデータを表示';
+    }
+  } catch (error) {
+    console.error(`手動イベントの${stage}に失敗しました`, error);
+    if (status) {
+      const detail = String(error && error.message || '原因不明').slice(0, 100);
+      status.classList.add('stale');
+      status.textContent += ` ・ 手動登録データの${stage}失敗（${detail}）`;
+    }
+  }
+};
 })();

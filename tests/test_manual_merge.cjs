@@ -97,3 +97,38 @@ for (const event of publishedManual) {
 }
 console.log(`Manual overlay validated against ${publishedAuto.length} automatic and ${publishedManual.length} real manual records.`);
 console.log('Manual identity/provenance regression tests passed.');
+
+// Exercise the actual loader using the published data in a browser-like context.
+async function testManualRecovery() {
+  const response = { ok: true, headers: { get: () => null }, json: async () => publishedManual };
+  const makePage = (fetcher, cached) => {
+    const status = { textContent: '自動更新済み', classList: { add() {} } };
+    let refreshed = 0;
+    const page = { window: { caches: { match: async () => cached } }, URL, console,
+      EVENTS: publishedAuto.slice(), refresh: () => { refreshed++; },
+      linkInfo: () => ({ url: '#', label: 'test' }),
+      document: { querySelector: () => status }, fetch: fetcher };
+    vm.runInContext(fs.readFileSync('manual-events.js', 'utf8'), vm.createContext(page));
+    return { page, status, getRefreshed: () => refreshed };
+  };
+  const good = makePage(async () => response, null);
+  await good.page.window.loadManualForumEvents();
+  assert.equal(good.page.EVENTS.length, publishedMerged.length);
+  assert.equal(good.getRefreshed(), 1);
+  assert.ok(!good.status.textContent.includes('失敗'));
+
+  const offline = makePage(async () => { throw Error('offline'); }, response);
+  await offline.page.window.loadManualForumEvents();
+  assert.equal(offline.page.EVENTS.length, publishedMerged.length);
+  assert.equal(offline.getRefreshed(), 1);
+  assert.ok(offline.status.textContent.includes('保存済みデータを表示'));
+
+  const failure = makePage(async () => { throw Error('network unavailable'); }, null);
+  await failure.page.window.loadManualForumEvents();
+  assert.equal(failure.page.EVENTS.length, publishedAuto.length);
+  assert.equal(failure.getRefreshed(), 0);
+  assert.ok(failure.status.textContent.includes('取得失敗'));
+  assert.ok(failure.status.textContent.includes('network unavailable'));
+  console.log('Manual recovery integration tests passed.');
+}
+testManualRecovery().catch(e => { console.error(e); process.exitCode = 1; });

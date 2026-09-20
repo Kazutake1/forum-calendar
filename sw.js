@@ -14,7 +14,8 @@ self.addEventListener('fetch',e=>{
         const response=await fetch(req,{cache:'no-store'});
         if(response.ok){
           // Use the canonical path as the cache key; the request has a timestamp query.
-          await (await caches.open(CACHE)).put(MANUAL_DATA,response.clone());
+          try { await (await caches.open(CACHE)).put(MANUAL_DATA,response.clone()); }
+          catch (cacheError) { console.warn('手動データのキャッシュ保存を省略',cacheError); }
         }
         return response;
       }catch(error){
@@ -31,5 +32,5 @@ self.addEventListener('fetch',e=>{
   }
   const isData=DATA_PATHS.some(p=>url.pathname.endsWith(p));
   if(isData){e.respondWith(fetch(req,{cache:'no-store'}));return;}
-  e.respondWith(fetch(req,{cache:'no-store'}).then(r=>{if(r&&r.ok){const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c))}return r}).catch(()=>caches.match(req).then(r=>r||caches.match('./index.html'))));
+  e.respondWith(fetch(req,{cache:'no-store'}).then(r=>{if(r&&r.ok){const c=r.clone();caches.open(CACHE).then(x=>x.put(req,c))}return r}).catch(()=>caches.match(req,{ignoreSearch:true}).then(r=>r||caches.match('./index.html'))));
 });
