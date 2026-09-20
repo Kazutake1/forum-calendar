@@ -126,7 +126,9 @@ def combine_performance(current: dict, incoming: dict) -> dict:
             evidence[field]=field_provenance(incoming,field)
         elif old == new and new_rank > old_rank:
             evidence[field]=field_provenance(incoming,field)
-        elif old and new and old != new and old_rank == new_rank and old_rank > 0:
+        elif (old and new and old != new and old_rank == new_rank and old_rank > 0
+      and not (field == "time" and len(time_parts(old)[0]) == len(time_parts(new)[0]) == 1
+               and time_parts(old)[0] == time_parts(new)[0])):
             conflict={"field":field,"existing":old,"incoming":new,"source_url":field_provenance(incoming,field).get("source_url","")}
             if conflict not in conflicts: conflicts.append(conflict)
         elif old and field not in evidence:

@@ -80,3 +80,9 @@ assert.equal(result[0].field_sources.time.source_type,'event_official');
 
 result=merge([base('開演18:00',{price:'500円'})], [manual('x-price','開演18:00',{price:'2000円',source_verified:true,verified_fields:['price']})]);
 assert.equal(result[0].price,'500円');
+
+// Equal-tier reports with the same start are compatible even when only one gives door time.
+result=merge([base('開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})],
+ [manual('opening-city','開場17:30／開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})]);
+assert.equal(result.length,1);
+assert.equal(result[0].time,'開場17:30／開演18:00');

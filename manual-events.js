@@ -125,7 +125,10 @@
           combined[field]=value;combined.field_sources[field]=fieldEvidence(incoming,field);
           if(field==='hall')combined.venues=venues(incoming);
         }else if(current[field]===value&&b>a)combined.field_sources[field]=fieldEvidence(incoming,field);
-        else if(current[field]!==value&&a===b&&a>0&&!corrected.includes(field))
+        else if(current[field]!==value&&a===b&&a>0&&!corrected.includes(field)&&
+           !(field==='time'&&timeParts(current[field]).starts.length===1&&
+             timeParts(value).starts.length===1&&
+             timeParts(current[field]).starts[0]===timeParts(value).starts[0]))
           throw new Error(`同順位の出典が食い違います。確認してください: ${field}`);
       }
       const t1=timeParts(current.time),t2=timeParts(incoming.time);
