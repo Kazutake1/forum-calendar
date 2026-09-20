@@ -32,7 +32,11 @@
         raw.title.trim().length < 2 || typeof raw.hall !== 'string' ||
         !raw.hall.trim() || typeof raw.id !== 'string' || !raw.id.trim() ||
         ids.has(raw.id) || !['x', 'city_official', 'other'].includes(raw.source_type) ||
+        (raw.distinct_performance !== undefined && typeof raw.distinct_performance !== 'boolean') ||
         !sourceUrl(raw)) throw new Error('手動イベントデータの形式が不正です');
+    if (raw.source_type === 'x' && !['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com'].includes(new URL(sourceUrl(raw)).hostname)) {
+      throw new Error('X投稿の出典URLが不正です');
+    }
     ids.add(raw.id);
     if (raw.match && (!validDate(raw.match.date) ||
         typeof raw.match.title !== 'string' || !raw.match.title.trim())) {
@@ -54,7 +58,13 @@
       const find = (target, requireTime) => result.map((e, index) => sameIdentity(e, target, requireTime) ? index : -1)
         .filter(index => index >= 0);
       let matches = find(incoming, true);
-      if (!matches.length && incoming.match) matches = find(incoming.match, false);
+      if (!matches.length && incoming.match) {
+        matches = find(incoming.match, Boolean(incoming.match.time));
+        if (!matches.length) throw new Error(`指定された既存イベントが見つかりません: ${incoming.title}`);
+      }
+      if (!matches.length && find(incoming, false).length && !incoming.distinct_performance) {
+        throw new Error(`同名・同日・同会場の時間差を確認してください: ${incoming.title}`);
+      }
       if (matches.length > 1) throw new Error(`重複候補が複数あります: ${incoming.title}`);
       if (!matches.length) { result.push(incoming); continue; }
       const i = matches[0], current = result[i];
