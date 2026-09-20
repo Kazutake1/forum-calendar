@@ -24,7 +24,7 @@ const manual = (id, time, extras = {}) => ({
 // Doors and start are different attributes of the same performance.
 let result = merge([base('開演18:00')], [manual('doors-and-start', '開場17:30／開演18:00')]);
 assert.equal(result.length, 1);
-assert.equal(result[0].time, '開演18:00');
+assert.equal(result[0].time, '開場17:30／開演18:00');
 
 // The first and second independent performances must remain separate.
 result = merge([base('開演10:00')], [manual('second', '開演18:00', {
@@ -66,3 +66,17 @@ assert.throws(() => merge([base('開演18:00')], [manual('not-reviewed', '開演
 })]), /根拠|確認|照合/);
 
 console.log('Manual identity/provenance regression tests passed.');
+
+// Verified field priority: event official > city schedule > X, regardless of insertion order.
+const proof=(id,time,source_type,source_url,rank)=>manual(id,time,{source_type,source_url,source_verified:true,event_specific:rank===3,verified_fields:['time']});
+const x=proof('x','開演18:00','x','https://x.com/example/status/123',1);
+const city=proof('city','開演18:00','city_schedule','https://www.city.inazawa.aichi.jp/ica/0000002507.html',2);
+const official=proof('official','開演18:00','event_official','https://example.org/event/123',3);
+const withRank=(value,e)=>({...e,price:'',time_source_verified:true,time:value});
+result=merge([withRank('開演18:00',x)], [withRank('開演18:00',city)]);
+assert.equal(result[0].field_sources.time.source_type,'city_schedule');
+result=merge([result[0]], [withRank('開演18:00',official)]);
+assert.equal(result[0].field_sources.time.source_type,'event_official');
+
+result=merge([base('開演18:00',{price:'500円'})], [manual('x-price','開演18:00',{price:'2000円',source_verified:true,verified_fields:['price']})]);
+assert.equal(result[0].price,'500円');

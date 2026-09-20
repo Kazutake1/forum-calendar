@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 import requests
+from event_integrity import same_performance, combine_performance, normalize_title
 from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parent
@@ -86,6 +87,21 @@ def load_json(path, default):
     except Exception:
         return default
 
+def load_required_events(path):
+    """Never replace a missing/corrupt/empty saved event dataset."""
+    try: data=json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"保存済みイベントを読み込めません。更新を停止: {path}") from exc
+    if not isinstance(data,list) or not data:
+        raise RuntimeError(f"保存済みイベントが空または配列ではありません。更新を停止: {path}")
+    for item in data:
+        if (not isinstance(item,dict) or not isinstance(item.get("date"),str)
+            or not valid_date(item["date"]) or not isinstance(item.get("title"),str)
+            or len(item["title"].strip())<2 or not isinstance(item.get("hall"),str)
+            or not item["hall"].strip()):
+            raise RuntimeError(f"保存済みイベントに不正データ。更新を停止: {path}")
+    return data
+
 def valid_date(s):
     try:
         datetime.strptime(s, "%Y-%m-%d")
@@ -108,28 +124,29 @@ def sanitize_event(e):
     if e.get("official_url"):
         u=clean(e.get("official_url"),500); pu=urlparse(u)
         if pu.scheme=="https" and pu.hostname and not any(ch in u for ch in ['"',"'","<",">"]): out["official_url"]=u
+    for name in ("event_id","performance_id","source_type","source_url","source_verified","verified_fields","event_specific","field_sources","review_conflicts","opening_time_sources"):
+        if name in e: out[name]=e[name]
+    for name in ("date","title","hall","time","price","official_url"):
+        for suffix in ("_source_type","_source_url","_source_verified","_event_specific"):
+            key_name=name+suffix
+            if key_name in e: out[key_name]=e[key_name]
     if not valid_date(out["date"]) or len(out["title"])<2: return None
     return out
 
-def key(e): return (e.get("date",""),clean(e.get("title")))
+def key(e): return (e.get("date",""),normalize_title(e.get("title","")))
 def dedupe(events):
-    out={}
+    """Merge only independently confirmed matching performances."""
+    result=[]; groups={}
     for raw in events:
-        e=sanitize_event(raw)
-        if not e: continue
-        k=key(e)
-        if k not in out: out[k]=e; continue
-        cur=out[k]; venues=[]
-        for v in (cur.get("venues") or [cur.get("hall")])+(e.get("venues") or [e.get("hall")]):
-            if v and v not in venues: venues.append(v)
-        cur["venues"]=venues
-        if venues: cur["hall"]=venues[0]
-        if not cur.get("time") and e.get("time"): cur["time"]=e["time"]
-        if not cur.get("price") and e.get("price"): cur["price"]=e["price"]
-        if e.get("official_url"): cur["official_url"]=e["official_url"]
-        sources=[x for x in [cur.get("source"),e.get("source")] if x]
-        if sources: cur["source"]="+".join(dict.fromkeys(sources))
-    return sorted(out.values(),key=lambda x:(x["date"],x.get("time",""),x["title"]))
+        item=sanitize_event(raw)
+        if not item: continue
+        k=key(item)
+        matches=[i for i in groups.get(k,[]) if same_performance(result[i],item)]
+        if len(matches)==1:
+            i=matches[0]; result[i]=combine_performance(result[i],item)
+        else:
+            groups.setdefault(k,[]).append(len(result)); result.append(item)
+    return sorted(result,key=lambda e:(e["date"],str(e.get("time") or ""),e["title"]))
 def ym(e): return e.get("date","")[:7]
 
 def page_is_valid(url,kind):
@@ -236,7 +253,7 @@ def parse_event_guide(event_guide):
             if not dm: continue
             year,month,day=map(int,dm.groups())
         hall=next((hh for hh in HALLS if hh in ctx),"その他"); tm=re.search(r"(\d{1,2})時(\d{2})分",ctx); time=f"{int(tm.group(1))}:{tm.group(2)}〜" if tm else ""; cleaned=re.sub(r"^[〖【].*?[〗】]\s*","",title)
-        events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide})
+        events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide,"source_type":"city_schedule","source_url":event_guide,"source_verified":True,"verified_fields":["date","title"]+(["hall"] if hall!="その他" else [])+(["time"] if tm else [])})
     return dedupe(events)
 
 def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
@@ -294,7 +311,7 @@ def park_event_from_page(url,source):
         time=parse_time_from_text(text)
         venue=PARK_NAME
     today=datetime.now().date(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
-    return [{"date":d.strftime("%Y-%m-%d"),"hall":venue,"venues":[venue],"time":time,"title":title,"price":price,"source":source,"official_url":url} for d in dates]
+    return [{"date":d.strftime("%Y-%m-%d"),"hall":venue,"venues":[venue],"time":time,"title":title,"price":price,"source":source,"official_url":url,"source_type":"event_official" if source=="city_event_calendar" else "other","source_url":url,"source_verified":source=="city_event_calendar","event_specific":source=="city_event_calendar","verified_fields":["date","title"]+(["hall"] if venue in text else [])+(["time"] if time else [])+(["price"] if price else [])} for d in dates]
 
 def parse_city_park_events():
     today=datetime.now().date(); seen=set(); events=[]; pages_ok=0
@@ -383,7 +400,7 @@ def parse_jr_inazawa_walks():
     return dedupe(events),brochure
 
 def main():
-    old=dedupe(load_json(EVENTS_FILE,[])); old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
+    old=dedupe(load_required_events(EVENTS_FILE)); old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
     previous_urls=old_meta.get("resolved_urls") or {}; event_guide_pref=previous_urls.get("events") or DEFAULT_EVENT_GUIDE; schedule_page_pref=previous_urls.get("schedule") or DEFAULT_SCHEDULE_PAGE; event_guide=event_guide_pref; schedule_page=schedule_page_pref
     try: event_guide,mode=discover_page("events",event_guide_pref); notes.append(f"イベント案内URL: {mode} {event_guide}")
     except Exception as e: notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")

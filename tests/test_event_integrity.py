@@ -1,7 +1,7 @@
 import unittest
 
 from event_integrity import (
-    city_verified, combine_performance, same_performance, time_parts,
+    city_verified, combine_performance, same_performance, time_parts, source_rank,
 )
 
 
@@ -23,8 +23,10 @@ class IdentityAndEvidenceTests(unittest.TestCase):
     def test_unknown_time_requires_evidence(self):
         self.assertFalse(same_performance(event(""), event("18:00〜")))
         self.assertFalse(same_performance(event(""), event("")))
-        self.assertTrue(same_performance(event("", official_url="https://example.org/event"),
-                                         event("", official_url="https://example.org/event")))
+        self.assertFalse(same_performance(event("", official_url="https://example.org/event"),
+                                          event("", official_url="https://example.org/event")))
+        self.assertTrue(same_performance(event("", performance_id="verified-show"),
+                                         event("", performance_id="verified-show")))
 
     def test_reviewed_performance_identity_supports_correction(self):
         self.assertTrue(same_performance(event("10:00〜", performance_id="show-a"),
@@ -43,6 +45,17 @@ class IdentityAndEvidenceTests(unittest.TestCase):
         self.assertEqual(result["time"], "18:00〜")
         self.assertEqual(result["price"], "500円")
         self.assertFalse(city_verified(result, "hall"))
+
+    def test_verified_field_ranking_and_protection(self):
+        base=event('開演18:00',source_type='x',source_url='https://x.com/a/status/1',source_verified=True,verified_fields=['time'])
+        city=event('開演18:00',source_type='city_schedule',source_url='https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified=True,verified_fields=['time'])
+        official=event('開演18:00',source_type='event_official',source_url='https://example.org/events/1',source_verified=True,event_specific=True,verified_fields=['time'])
+        self.assertEqual([source_rank(x,'time') for x in (base,city,official)],[1,2,3])
+        merged=combine_performance(base,city)
+        self.assertEqual(merged['field_sources']['time']['source_type'],'city_schedule')
+        merged=combine_performance(merged,official)
+        self.assertEqual(merged['field_sources']['time']['source_type'],'event_official')
+        self.assertEqual(source_rank(event('開演18:00',source_type='event_official',source_url='https://example.org',source_verified=True),'time'),0)
 
     def test_unverified_city_link_is_not_verification(self):
         item = event("18:00〜", source="event_guide",

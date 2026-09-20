@@ -1,4 +1,4 @@
-const CACHE='forum-calendar-v9-3-3';
+const CACHE='forum-calendar-v9-3-4';
 const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png','./manual-events.js'];
 const DATA_PATHS=['/events.json','/update-meta.json','/manual_events.json'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)))});
