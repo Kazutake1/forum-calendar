@@ -1,0 +1,48 @@
+name: Install manual event support
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-manual-support.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Apply guarded patch
+        run: python3 scripts/install_manual_support.py
+      - name: Validate unchanged JSON and JavaScript syntax
+        run: |
+          node --check manual-events.js
+          node --check sw.js
+          python3 - <<'PY'
+          import json, pathlib, re, subprocess
+          root=pathlib.Path('.')
+          assert isinstance(json.loads((root/'manual_events.json').read_text(encoding='utf-8')), list)
+          html=(root/'index.html').read_text(encoding='utf-8')
+          assert 'Ver.9.3.2' in html and 'manual-events.js?v=932' in html
+          scripts=re.findall(r'<script>(.*?)</script>', html, re.S)
+          assert len(scripts)==1, f'Unexpected inline script count: {len(scripts)}'
+          subprocess.run(['node', '--check'], input=scripts[0], text=True, check=True)
+          assert 'manual_events.json' in (root/'sw.js').read_text(encoding='utf-8')
+          print('Manual overlay integration validated')
+          PY
+      - name: Commit only application integration files
+        run: |
+          git config user.name "forum-calendar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html sw.js
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Enable separate manual events in calendar v9.3.2"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
