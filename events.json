@@ -630,7 +630,39 @@
       "その他"
     ],
     "source": "city_event_calendar",
-    "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html"
+    "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+    "field_sources": {
+      "date": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "title": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "hall": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "time": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "official_url": {
+        "source_type": "city_event_calendar",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": false,
+        "event_specific": false
+      }
+    }
   },
   {
     "date": "2026-10-18",
@@ -642,7 +674,39 @@
       "その他"
     ],
     "source": "city_event_calendar",
-    "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html"
+    "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+    "field_sources": {
+      "date": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "title": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "hall": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "time": {
+        "source_type": "event_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": true,
+        "event_specific": true
+      },
+      "official_url": {
+        "source_type": "city_event_calendar",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
+        "verified": false,
+        "event_specific": false
+      }
+    }
   },
   {
     "date": "2026-10-24",
@@ -795,6 +859,25 @@
     ],
     "source": "event_guide",
     "official_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+  },
+  {
+    "date": "2027-03-22",
+    "hall": "その他",
+    "time": "",
+    "title": "「音楽三昧」合唱団員募集（申込受付中）",
+    "price": "",
+    "venues": [
+      "その他"
+    ],
+    "source": "event_guide",
+    "official_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_type": "city_schedule",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title"
+    ]
   },
   {
     "date": "2027-03-22",
