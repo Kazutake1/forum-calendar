@@ -97,7 +97,7 @@ const DIRECT_LINKS=[
   {test:t=>t.includes('セントラル愛知交響楽団')||t.includes('Morning Classic')||t.includes('音楽家の集い')||t.includes('リリー・ミューズ')||t.includes('ピアノ体験会')||t.includes('M&Oplays')||t.includes('音楽三昧'),url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',label:'会館公式イベント案内'}
 ];
 function linkInfo(e){
-  if(e.source_type==='city_schedule'&&e.source_url)return {url:e.source_url,label:'催事予定表の原本'};
+  if(e.source_type==='city_schedule'&&e.source_url)return {url:e.source_url,label:'催事予定表'};
   if(e.official_url)return {url:e.official_url,label:'イベント公式ページ'};
   const x=DIRECT_LINKS.find(x=>x.test(e.title));
   if(x)return x;
