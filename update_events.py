@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, re, subprocess, tempfile
+import hashlib, json, re, subprocess, tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -399,6 +399,26 @@ def parse_jr_inazawa_walks():
         events.append({"date":date,"hall":JR_INAZAWA,"venues":[JR_INAZAWA],"time":time,"title":title,"price":"参加費無料・予約不要","source":"jr_walking","official_url":brochure})
     return dedupe(events),brochure
 
+def verified_schedule_lock():
+    """Protect visually checked months from count-only OCR replacement.
+
+    The browser renders the verified JSON as a separate overlay. This lock
+    prevents a later automated run from replacing the same months with raw OCR.
+    A changed PDF is reported for review instead of guessed into confirmed data.
+    """
+    path=ROOT / "verified_schedule.json"
+    if not path.exists(): return {}, ""
+    data=json.loads(path.read_text(encoding="utf-8"))
+    rows=data.get("events",[])
+    if (data.get("schema_version")!=1 or len(rows)!=58 or
+        sum(e.get("date","").startswith("2026-10") for e in rows)!=28 or
+        sum(e.get("date","").startswith("2026-11") for e in rows)!=30 or
+        not all(e.get("source_confirmed") is True and
+                e.get("source_pdf_sha256")==data.get("source_pdf_sha256") for e in rows)):
+        raise ValueError("照合済み予定表の形式が不正です")
+    return {"2026-10", "2026-11"}, data["source_pdf_sha256"]
+
+
 def main():
     old=dedupe(load_required_events(EVENTS_FILE)); old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
     previous_urls=old_meta.get("resolved_urls") or {}; event_guide_pref=previous_urls.get("events") or DEFAULT_EVENT_GUIDE; schedule_page_pref=previous_urls.get("schedule") or DEFAULT_SCHEDULE_PAGE; event_guide=event_guide_pref; schedule_page=schedule_page_pref
@@ -412,9 +432,22 @@ def main():
         else: notes.append("公式イベント案内: 構造化イベント0件")
     except Exception as e: notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
     try:
-        label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content; year,months=infer_year_months(label,pdf_url); target_yms={f"{year:04d}-{m:02d}" for m in months}; parsed=parse_schedule_ocr(ocr_pdf(pdf),year,months); old_target=sum(1 for e in old if ym(e) in target_yms and e.get("hall") in HALLS); threshold=max(8,int(old_target*0.60)) if old_target else 8
-        if len(parsed)>=threshold: schedule=parsed; schedule_trusted=True; source_success=True; forum_success=True; notes.append(f"催事予定表OCR 信頼済み {len(parsed)}件 / しきい値{threshold}")
-        else: notes.append(f"催事予定表OCR 信頼度不足 {len(parsed)}件 / しきい値{threshold} のため既存月データ維持")
+        label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content; year,months=infer_year_months(label,pdf_url)
+        target_yms={f"{year:04d}-{m:02d}" for m in months}
+        locked,expected_sha=verified_schedule_lock()
+        protected=target_yms & locked
+        if protected:
+            target_yms-=protected
+            changed=hashlib.sha256(pdf).hexdigest()!=expected_sha
+            notes.append("照合済みの月は予定表OCRで上書きしません: "+", ".join(sorted(protected))+
+                         ("（予定表PDF更新のため要再確認）" if changed else ""))
+            if not changed: source_success=True; forum_success=True
+        if target_yms:
+            parsed=[e for e in parse_schedule_ocr(ocr_pdf(pdf),year,months) if ym(e) in target_yms]
+            old_target=sum(1 for e in old if ym(e) in target_yms and e.get("hall") in HALLS)
+            threshold=max(8,int(old_target*0.60)) if old_target else 8
+            if len(parsed)>=threshold: schedule=parsed; schedule_trusted=True; source_success=True; forum_success=True; notes.append(f"催事予定表OCR 信頼済み {len(parsed)}件 / しきい値{threshold}")
+            else: notes.append(f"催事予定表OCR 信頼度不足 {len(parsed)}件 / しきい値{threshold} のため既存月データ維持")
     except Exception as e: notes.append(f"催事予定表OCR失敗: {clean(e,180)}")
     try: city_park,checked=parse_city_park_events(); city_park_authoritative=checked>0; park.extend(city_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（市公式） {len(city_park)}件 / カレンダー{checked}ページ確認")
     except Exception as e: notes.append(f"文化の丘公園（市公式）取得失敗: {clean(e,180)}")

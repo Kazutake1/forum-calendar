@@ -1,0 +1,998 @@
+{
+  "schema_version": 1,
+  "pdf_as_of": "2026-09-01",
+  "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+  "events": [
+    {
+      "id": "schedule-10-01",
+      "date": "2026-10-02",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "成人大学　後期講座",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 1",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-02",
+      "date": "2026-10-03",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "15:00-",
+      "title": "セントラル愛知交響楽団　第１６回名曲コンサート 「Ｔｈｅ　Ｍｕｓｉｃａｌ」",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 2",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-03",
+      "date": "2026-10-05",
+      "weekday": "月",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 3",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-04",
+      "date": "2026-10-08",
+      "weekday": "木",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-",
+      "title": "令和８年度文化グループ発表会第１回打合せ会（展示）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 4",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-05",
+      "date": "2026-10-09",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "13:30-15:00",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 5",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-06",
+      "date": "2026-10-10",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "14:00-",
+      "title": "コーロ・アマトリーチェ４０周年記念第１４回コンサート",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 6",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-07",
+      "date": "2026-10-11",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "16:30-",
+      "title": "須山バレエ２０２６　SHOW CASE 【トゥーランドット】",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 7",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-08",
+      "date": "2026-10-12",
+      "weekday": "月",
+      "holiday_mark_on_pdf": true,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "",
+      "title": "ハロウィンコンサート",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 8",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-09",
+      "date": "2026-10-12",
+      "weekday": "月",
+      "holiday_mark_on_pdf": true,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "13:00-",
+      "title": "第３回受賞者記念コンサート",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 9",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-10",
+      "date": "2026-10-13",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 10",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-11",
+      "date": "2026-10-15",
+      "weekday": "木",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-",
+      "title": "令和８年度文化グループ発表会第１回打合せ会（芸能）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 11",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-12",
+      "date": "2026-10-16",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "成人大学　後期講座",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 12",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-13",
+      "date": "2026-10-17",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "13:00-",
+      "title": "稲沢まつり／いなざわアイドルフェス",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 13",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-14",
+      "date": "2026-10-17",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-15:00",
+      "title": "稲沢まつり／健やかワールド",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 14",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-15",
+      "date": "2026-10-17",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "12:45-",
+      "title": "稲沢まつり／音楽の集い",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 15",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-16",
+      "date": "2026-10-18",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "15:00-",
+      "title": "稲沢まつり／稲沢の音楽シリーズ　エレクトーン奏者　小川友愛プロヂュース公演 「音のおくりもの」この街からあなたへつなぐ演奏会",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 16",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-17",
+      "date": "2026-10-18",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "11:00-15:30",
+      "title": "稲沢まつり／JR貨物展示コーナー　～鉄道物語～",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 17",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-18",
+      "date": "2026-10-18",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "13:00-15:35",
+      "title": "稲沢まつり／秋の芸術祭　芸能発表",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 18",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-19",
+      "date": "2026-10-20",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "13:30-15:00",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 19",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-20",
+      "date": "2026-10-21",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:20",
+      "title": "童謡・唱歌を中心に懐かしい歌をうたいましょう！（お茶又はお水付）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 20",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-21",
+      "date": "2026-10-23",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "家庭教育学級",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 21",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-22",
+      "date": "2026-10-24",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "9:30-20:30",
+      "title": "スタインウェイがつなぐ街の劇場　～ピアノ体験会～",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 22",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-23",
+      "date": "2026-10-25",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "17:00-",
+      "title": "ウルフルズライブツアー２０２６　ツーツーウラウラツーシズン３",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 23",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-24",
+      "date": "2026-10-27",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 24",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-25",
+      "date": "2026-10-30",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "家庭教育学級",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 25",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-26",
+      "date": "2026-10-31",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "①13:00- ②17:30-",
+      "title": "舞台『ブランク』",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 26",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-27",
+      "date": "2026-10-31",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "",
+      "title": "ピアノ発表会",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 27",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-10-28",
+      "date": "2026-10-31",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "14:30-",
+      "title": "ワンコインコンサート　ワンコインでこ～んなに楽しめる！～",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 10, row 28",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-01",
+      "date": "2026-11-01",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "17:00-",
+      "title": "ＫＡＺＵＹＯＳＨＩ　ＳＡＩＴＯ ＬＩＶＥＴＯＵＲ２０２６”日常Ｄａｙｓ”",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 1",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-02",
+      "date": "2026-11-02",
+      "weekday": "月",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 2",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-03",
+      "date": "2026-11-04",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "12:00-16:00",
+      "title": "マルシェ＆障害者雇用フォーラム２０２６",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 3",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-04",
+      "date": "2026-11-05",
+      "weekday": "木",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "Ｍｏｒｎｉｎｇ　ＣｌａｓｓｉｃVｏｌ.３",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 4",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-05",
+      "date": "2026-11-06",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "12:00-13:00",
+      "title": "セントラル愛知交響楽団公開企画2026Part３　公開リハーサル",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 5",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-06",
+      "date": "2026-11-07",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "11:00-15:00",
+      "title": "第62回尾張地区吹奏楽祭",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 6",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-07",
+      "date": "2026-11-08",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "10:00-16:00",
+      "title": "第62回尾張地区吹奏楽祭",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 7",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-08",
+      "date": "2026-11-08",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "12:30-",
+      "title": "第４６回稲沢音楽祭",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 8",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-09",
+      "date": "2026-11-10",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "13:30-15:00",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 9",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-10",
+      "date": "2026-11-10",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "14:00-",
+      "title": "女声合唱団フィオーレ　フィオーレ５ｔｈコンサート",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 10",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-11",
+      "date": "2026-11-11",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:20",
+      "title": "童謡・唱歌を中心に懐かしい歌をうたいましょう！（お茶又はお水付）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 11",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-12",
+      "date": "2026-11-13",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "家庭教育学級",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 12",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-13",
+      "date": "2026-11-13",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "13:30-15:00",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 13",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-14",
+      "date": "2026-11-14",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "14:30-15:30",
+      "title": "学校法人滝川学園　名古屋文理大学創立70年記念講演会",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 14",
+      "source_confirmed": true,
+      "detail_review": {
+        "status": "要確認",
+        "note": "催事予定表は小ホール 14:30–15:30。稲沢市の広報は講演会を中ホール 16:00–17:30と記載しています。",
+        "conflicting_source_url": "https://www.city.inazawa.aichi.jp/cmsfiles/contents/0000006/6040/08_mihiraki1263.pdf"
+      }
+    },
+    {
+      "id": "schedule-11-15",
+      "date": "2026-11-14",
+      "weekday": "土",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "16:00-17:30",
+      "title": "学校法人滝川学園　名古屋文理大学創立70年記念式典",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 15",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-16",
+      "date": "2026-11-15",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "14:00-15:30",
+      "title": "音楽家の集いVol..113　「峰岸桂子＆ルイス・サルトール『ラテンの魅力』」",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 16",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-17",
+      "date": "2026-11-18",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 17",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-18",
+      "date": "2026-11-18",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "12:30-",
+      "title": "手塚淑子ソプラノリサイタル",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 18",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-19",
+      "date": "2026-11-19",
+      "weekday": "木",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "",
+      "title": "令和８年度稲沢・蟹江安全運転管理者講習会",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 19",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-20",
+      "date": "2026-11-19",
+      "weekday": "木",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "13:30-",
+      "title": "稲沢商工会議所女性会チャリティーコンサート　母娘の愛で紡ぐ音の花束",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 20",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-21",
+      "date": "2026-11-19",
+      "weekday": "木",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "18:30-20:50",
+      "title": "いなざわ演劇鑑賞会例会　劇団青年座公演「夫婦レコード」",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 21",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-22",
+      "date": "2026-11-20",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "13:30-15:50",
+      "title": "いなざわ演劇鑑賞会例会　劇団青年座公演「夫婦レコード」",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 22",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-23",
+      "date": "2026-11-22",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "14:00-15:05",
+      "title": "稲沢おやこ劇場例会　太鼓と芝居のたまっこ座「どうぶつ忍者太鼓」",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 23",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-24",
+      "date": "2026-11-23",
+      "weekday": "月",
+      "holiday_mark_on_pdf": true,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "未定",
+      "title": "カルチャータウン　リーフウォーク稲沢校　カルチャーフェスティバル",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 24",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-25",
+      "date": "2026-11-24",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-11:30",
+      "title": "なかよし（ＢＡＮストレッチサークル）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 25",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-26",
+      "date": "2026-11-24",
+      "weekday": "火",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "18:30-",
+      "title": "名古屋文理大学コーラスクラブ公開収録",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 26",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-27",
+      "date": "2026-11-25",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "10:00-",
+      "title": "令和８年度　文化グループ発表会第２回打合せ会（芸能）",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 27",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-28",
+      "date": "2026-11-25",
+      "weekday": "水",
+      "holiday_mark_on_pdf": false,
+      "hall": "中ホール",
+      "venues": [
+        "中ホール"
+      ],
+      "time": "18:30-20:00",
+      "title": "ゆとり創造講演会　講師：里崎智也　演台：勝者になるための提言",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 28",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-29",
+      "date": "2026-11-27",
+      "weekday": "金",
+      "holiday_mark_on_pdf": false,
+      "hall": "小ホール",
+      "venues": [
+        "小ホール"
+      ],
+      "time": "18:30-",
+      "title": "Cocco jimayaki全国巡回展示ツアー2026 ～Cocco New Album「ハナウムイ」と共に～",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 29",
+      "source_confirmed": true
+    },
+    {
+      "id": "schedule-11-30",
+      "date": "2026-11-29",
+      "weekday": "日",
+      "holiday_mark_on_pdf": false,
+      "hall": "大ホール",
+      "venues": [
+        "大ホール"
+      ],
+      "time": "未定",
+      "title": "かすみミュージックスクール　オータムコンサート",
+      "source_type": "city_schedule",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf",
+      "source_pdf_sha256": "c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8",
+      "source_row": "PDF page 1, month 11, row 30",
+      "source_confirmed": true
+    }
+  ]
+}

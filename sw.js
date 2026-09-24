@@ -1,12 +1,29 @@
-const CACHE='forum-calendar-v9-3-6';
+const CACHE='forum-calendar-v9-3-7';
 const MANUAL_DATA='./manual_events.json';
-const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png','./manual-events.js',MANUAL_DATA];
+const VERIFIED_DATA='./verified_schedule.json';
+const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png','./manual-events.js',MANUAL_DATA,'./verified-schedule.js',VERIFIED_DATA];
 const DATA_PATHS=['/events.json','/update-meta.json','/manual_events.json'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)))});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('forum-calendar-')&&k!==CACHE).map(k=>caches.delete(k))))]))});
 self.addEventListener('fetch',e=>{
   const req=e.request;if(req.method!=='GET')return;
   const url=new URL(req.url);if(url.origin!==self.location.origin)return;
+  if(url.pathname.endsWith('/verified_schedule.json')){
+    e.respondWith(fetch(req,{cache:'no-store'}).then(async response=>{
+      if(response.ok){
+        const body=await response.clone().json();
+        if(body.schema_version===1&&Array.isArray(body.events)&&body.events.length===58){
+          await (await caches.open(CACHE)).put(VERIFIED_DATA,response.clone());
+        }
+      }
+      return response;
+    }).catch(async error=>{
+      const saved=await caches.match(VERIFIED_DATA);
+      if(!saved)throw error;
+      return new Response(await saved.text(),{headers:{'Content-Type':'application/json; charset=utf-8','X-Forum-Verified-Cache':'stale'}});
+    }));
+    return;
+  }
   const isManual=url.pathname.endsWith('/manual_events.json');
   if(isManual){
   e.respondWith((async()=>{
