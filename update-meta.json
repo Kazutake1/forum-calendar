@@ -1,11 +1,11 @@
 {
   "status": "ok",
-  "updated_at": "2026-09-24T00:31:07+00:00",
-  "updated_at_jst": "2026/09/24 09:31",
-  "last_successful_source_at": "2026-09-24T00:31:07+00:00",
-  "last_successful_forum_at": "2026-09-24T00:31:07+00:00",
-  "last_successful_park_at": "2026-09-24T00:31:07+00:00",
-  "event_count": 84,
+  "updated_at": "2026-09-25T00:33:51+00:00",
+  "updated_at_jst": "2026/09/25 09:34",
+  "last_successful_source_at": "2026-09-25T00:33:51+00:00",
+  "last_successful_forum_at": "2026-09-25T00:33:51+00:00",
+  "last_successful_park_at": "2026-09-25T00:33:51+00:00",
+  "event_count": 85,
   "schedule_replaced": false,
   "notes": [
     "イベント案内URL: fixed https://www.city.inazawa.aichi.jp/ica/0000002507.html",
