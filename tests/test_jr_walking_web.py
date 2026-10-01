@@ -2,6 +2,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from event_integrity import source_rank
 from jr_walking_web import SEARCH_API, parse_jr_inazawa_walks
 
 
@@ -56,6 +57,16 @@ class JrWalkingWebTests(unittest.TestCase):
         self.assertEqual(event["title"], "JR東海 さわやかウォーキング「歴史を歩く稲沢コース」")
         self.assertEqual(event["source"], "jr_walking")
         self.assertEqual(event["official_url"], "https://walking.jr-central.co.jp/course/detail/123")
+        self.assertEqual(event["source_type"], "event_official")
+        self.assertEqual(event["source_url"], event["official_url"])
+        self.assertTrue(event["source_verified"])
+        self.assertTrue(event["event_specific"])
+        self.assertEqual(event["verified_fields"], ["date", "title", "hall", "time"])
+        self.assertEqual(source_rank(event, "date"), 3)
+        self.assertEqual(source_rank(event, "title"), 3)
+        self.assertEqual(source_rank(event, "hall"), 3)
+        self.assertEqual(source_rank(event, "time"), 3)
+        self.assertEqual(source_rank(event, "price"), 0)
 
     def test_invalid_detail_path_is_not_accepted(self):
         rows = [{

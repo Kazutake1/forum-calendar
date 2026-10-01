@@ -85,15 +85,21 @@ def parse_jr_inazawa_walks():
         if not title:
             continue
 
+        detail_time = _detail_time(detail_url)
         verified.append({
             "date": event_date,
             "hall": "JR稲沢駅",
             "venues": ["JR稲沢駅"],
-            "time": _detail_time(detail_url),
+            "time": detail_time,
             "title": f"JR東海 さわやかウォーキング「{title}」",
             "price": "参加費無料・予約不要",
             "source": "jr_walking",
             "official_url": detail_url,
+            "source_type": "event_official",
+            "source_url": detail_url,
+            "source_verified": True,
+            "event_specific": True,
+            "verified_fields": ["date", "title", "hall"] + (["time"] if detail_time else []),
         })
 
     if not verified:
