@@ -38,7 +38,7 @@
     if(['event_official','organizer','promoter'].includes(kind)&&info.event_specific===true&&
        !['x.com','www.x.com','twitter.com','www.twitter.com'].includes(url.hostname))return 3;
     if(url.hostname==='www.city.inazawa.aichi.jp'&&
-       ['city_schedule','city_official','event_guide','city_event_calendar','schedule_ocr'].includes(kind))return 2;
+       ['city_schedule','city_official','city_event_guide','event_guide','city_event_calendar','schedule_ocr'].includes(kind))return 2;
     if(kind==='x'&&['x.com','www.x.com','twitter.com','www.twitter.com'].includes(url.hostname))return 1;
     return 0;
   };

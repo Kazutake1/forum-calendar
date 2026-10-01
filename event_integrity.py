@@ -11,7 +11,7 @@ import unicodedata
 from urllib.parse import urlparse
 
 CITY_HOST = "www.city.inazawa.aichi.jp"
-CITY_SOURCES = {"event_guide", "city_event_calendar", "schedule_ocr"}
+CITY_SOURCES = {"event_guide", "city_event_guide", "city_event_calendar", "schedule_ocr"}
 FIELDS = ("date", "title", "hall", "time", "price", "official_url")
 
 
@@ -115,7 +115,7 @@ def field_provenance(e: dict, field: str) -> dict:
     return {"source_type": kind, "source_url": url, "verified": verified, "event_specific": specific}
 
 def source_rank(e: dict, field: str) -> int:
-    """Verified field: event-specific official 3 > city schedule 2 > X 1."""
+    """Verified field: event-specific official 3 > city official/schedule 2 > X 1."""
     info = field_provenance(e, field)
     if info.get("verified") is not True: return 0
     try:
