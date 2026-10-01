@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "city_host": "www.city.inazawa.aichi.jp",
+  "x_hosts": [
+    "x.com",
+    "www.x.com",
+    "twitter.com",
+    "www.twitter.com"
+  ],
+  "merge_fields": [
+    "date",
+    "title",
+    "hall",
+    "time",
+    "price",
+    "official_url"
+  ],
+  "manual_source_types": [
+    "x",
+    "city_official",
+    "city_schedule",
+    "event_official",
+    "organizer",
+    "promoter",
+    "other"
+  ],
+  "source_groups": [
+    {
+      "name": "event_specific_official",
+      "rank": 3,
+      "source_types": [
+        "event_official",
+        "organizer",
+        "promoter"
+      ],
+      "require_event_specific": true,
+      "forbidden_hosts": [
+        "x.com",
+        "www.x.com",
+        "twitter.com",
+        "www.twitter.com"
+      ]
+    },
+    {
+      "name": "city_official",
+      "rank": 2,
+      "source_types": [
+        "city_schedule",
+        "city_official",
+        "city_event_guide",
+        "event_guide",
+        "city_event_calendar",
+        "schedule_ocr"
+      ],
+      "hosts": [
+        "www.city.inazawa.aichi.jp"
+      ]
+    },
+    {
+      "name": "x",
+      "rank": 1,
+      "source_types": [
+        "x"
+      ],
+      "hosts": [
+        "x.com",
+        "www.x.com",
+        "twitter.com",
+        "www.twitter.com"
+      ]
+    }
+  ]
+}

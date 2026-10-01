@@ -8,6 +8,7 @@ on:
       - 'manual-events.js'
       - 'verified-schedule.js'
       - 'verified_schedule.json'
+      - 'event-policy.json'
       - 'event_integrity.py'
       - 'update_events.py'
       - 'update_events_no_ocr.py'
@@ -48,6 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile event_integrity.py update_events.py update_events_no_ocr.py manage_manual_events.py
+          python -m json.tool event-policy.json > /dev/null
           python - <<'PY'
           import re
           from pathlib import Path

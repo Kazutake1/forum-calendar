@@ -1,6 +1,10 @@
 /* Visually checked schedule overlay. Keeps automated and manual JSON untouched. */
 (() => {
   'use strict';
+  const POLICY=window.FORUM_EVENT_POLICY;
+  if(!POLICY||POLICY.schema_version!==1||typeof POLICY.city_host!=='string')
+    throw new Error('イベント出典ポリシーの形式が不正です');
+  const CITY_HOST=POLICY.city_host;
   const pdf = 'https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf';
   const sha = 'c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8';
   // Each mapping is an individually reviewed identity, not a fuzzy title match.
@@ -70,7 +74,7 @@
         let cityProof = false;
         try { const url = new URL(previous.source_url || previous.official_url);
           cityProof = previous.source_verified === true && url.protocol === 'https:' &&
-            url.hostname === 'www.city.inazawa.aichi.jp'; }
+            url.hostname === CITY_HOST; }
         catch (_) { /* Historical entries without a source cannot establish an official discrepancy. */ }
         if (cityProof && a && b && a !== b) {
           e.detail_review = {status:'要確認', note:`催事予定表の時間は${e.time}。市公式イベント案内は${previous.time}。`,
