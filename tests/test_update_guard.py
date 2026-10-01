@@ -5,7 +5,9 @@ import unittest
 from pathlib import Path
 
 from event_integrity import combine_performance, same_performance, source_rank
-from update_events import dedupe, load_required_events
+from update_events import (
+    dedupe, is_non_event_guide_notice, is_stale_event_guide_notice, load_required_events,
+)
 
 
 class UpdateSafetyTests(unittest.TestCase):
@@ -49,6 +51,57 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(combine_performance(merged, official)["price"], "公式価格")
         self.assertEqual(combine_performance(official, x)["price"], "公式価格")
         self.assertEqual(source_rank(dict(official, event_specific=False), "price"), 0)
+
+
+    def test_recruitment_notices_are_not_calendar_events(self):
+        for title in (
+            "出演者募集",
+            "出演者募集中",
+            "参加者を募集します",
+            "参加者を募集しています",
+            "参加者募集受付中",
+            "ボランティア募集要項",
+            "「音楽三昧」合唱団員募集（申込受付中）",
+            "出演者募集のお知らせ",
+        ):
+            with self.subTest(title=title):
+                self.assertTrue(is_non_event_guide_notice(title))
+        for title in (
+            "ワンコインコンサートスペシャル 音楽三昧「ドイツ編」",
+            "募集作品展",
+            "合唱団演奏会",
+        ):
+            with self.subTest(title=title):
+                self.assertFalse(is_non_event_guide_notice(title))
+
+        stale = {
+            "date": "2027-03-22", "title": "出演者募集", "hall": "その他",
+            "source": "event_guide",
+        }
+        self.assertTrue(is_stale_event_guide_notice(stale))
+        self.assertFalse(is_stale_event_guide_notice(dict(stale, source="manual")))
+
+    def test_same_source_unknown_time_dedupes_without_merging_other_records(self):
+        base = {
+            "date": "2027-03-22", "title": "テストイベント", "hall": "その他",
+            "venues": ["その他"], "time": "", "price": "", "source": "event_guide",
+            "official_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        }
+        richer = dict(
+            base,
+            source_type="city_schedule",
+            source_url="https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+            source_verified=True,
+            verified_fields=["date", "title"],
+        )
+        self.assertEqual(len(dedupe([base, richer])), 1)
+
+        early = dict(base, title="同日同名公演", time="13:00〜")
+        late = dict(base, title="同日同名公演", time="17:00〜")
+        self.assertEqual(len(dedupe([early, late])), 2)
+
+        other_url = dict(base, official_url="https://example.org/event")
+        self.assertEqual(len(dedupe([base, other_url])), 2)
 
     def test_x_cannot_silently_overwrite_unverified_legacy(self):
         base = {"date": "2026-10-31", "title": "演奏会", "hall": "中ホール", "time": "開演18:00", "price": "旧データ"}
