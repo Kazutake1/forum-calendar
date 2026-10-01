@@ -4,6 +4,7 @@
 - 稲沢市公式イベントカレンダー（`city_event_calendar`）をイベント公式ランク3ではなく、市公式ランク2として生成するよう修正。既存の「稲沢まつり」2件も表示内容を変えず、出典メタデータのみ是正。
 - Service Workerの `events.json` / `manual_events.json` / `verified_schedule.json` / `event-policy.json` を意味検証してから保存する構造へ変更。JSONとして読めても必須項目や固定SHA等が不正なデータでは、最後に正常だったキャッシュを上書きしない。
 - 新Service Workerのinstall時も意味検証済みJSONだけを新しいキャッシュへ保存し、検証失敗時は旧キャッシュを残す。空配列だけでなく `[{}]` 等の構造不正、手動データ不正、verified SHA不一致、ポリシー不正の回帰テストを追加。
+- JR東海公式Web/API経路の `jr_walking_web.py` をCIの変更検知・Python構文検査対象へ追加し、稲沢駅スタートの厳密一致、詳細URL検証、0件時の既存データ維持を回帰テスト化。
 
 ## Ver.9.3.7 — 構造・運用基盤の整理（2026-10-02）
 - 月次手動イベント管理Workflowの依存パッケージ不足を修正し、全Pythonテストを正常実行できるようにした。
