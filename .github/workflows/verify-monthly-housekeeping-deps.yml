@@ -1,0 +1,31 @@
+name: Verify monthly housekeeping dependencies
+
+on:
+  push:
+    branches:
+      - fix-monthly-housekeeping-deps-20261001
+    paths:
+      - '.github/workflows/verify-monthly-housekeeping-deps.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-monthly-housekeeping-deps-20261001
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      - name: Run same Python test suite as monthly housekeeping
+        run: python -m unittest discover -s tests -v
+      - name: Verify requests import and diff hygiene
+        run: |
+          python -c "import requests, bs4; print('dependencies ok')"
+          git diff --check
