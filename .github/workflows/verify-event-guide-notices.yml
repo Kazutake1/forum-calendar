@@ -34,6 +34,8 @@ jobs:
 
           assert u.is_non_event_guide_notice('「音楽三昧」合唱団員募集（申込受付中）')
           assert u.is_non_event_guide_notice('出演者募集')
+          assert u.is_non_event_guide_notice('参加者を募集します')
+          assert u.is_non_event_guide_notice('ボランティア募集要項')
           assert not u.is_non_event_guide_notice('ワンコインコンサートスペシャル 音楽三昧「ドイツ編」')
           assert not u.is_non_event_guide_notice('募集作品展')
 
