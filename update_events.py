@@ -291,7 +291,7 @@ def park_event_from_page(url,source):
         time=parse_time_from_text(text)
         venue=PARK_NAME
     today=datetime.now().date(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
-    return [{"date":d.strftime("%Y-%m-%d"),"hall":venue,"venues":[venue],"time":time,"title":title,"price":price,"source":source,"official_url":url,"source_type":"event_official" if source=="city_event_calendar" else "other","source_url":url,"source_verified":source=="city_event_calendar","event_specific":source=="city_event_calendar","verified_fields":["date","title"]+(["hall"] if venue in text else [])+(["time"] if time else [])+(["price"] if price else [])} for d in dates]
+    return [{"date":d.strftime("%Y-%m-%d"),"hall":venue,"venues":[venue],"time":time,"title":title,"price":price,"source":source,"official_url":url,"source_type":"city_event_calendar" if source=="city_event_calendar" else "other","source_url":url,"source_verified":source=="city_event_calendar","event_specific":source=="city_event_calendar","verified_fields":["date","title"]+(["hall"] if venue in text else [])+(["time"] if time else [])+(["price"] if price else [])} for d in dates]
 
 def parse_city_park_events():
     today=datetime.now().date(); seen=set(); events=[]; pages_ok=0

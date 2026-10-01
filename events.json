@@ -633,25 +633,25 @@
     "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
     "field_sources": {
       "date": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
         "verified": true,
         "event_specific": true
       },
       "title": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
         "verified": true,
         "event_specific": true
       },
       "hall": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
-        "verified": true,
+        "verified": false,
         "event_specific": true
       },
       "time": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
         "verified": true,
         "event_specific": true
@@ -677,25 +677,25 @@
     "official_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
     "field_sources": {
       "date": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
         "verified": true,
         "event_specific": true
       },
       "title": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
         "verified": true,
         "event_specific": true
       },
       "hall": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
-        "verified": true,
+        "verified": false,
         "event_specific": true
       },
       "time": {
-        "source_type": "event_official",
+        "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
         "verified": true,
         "event_specific": true

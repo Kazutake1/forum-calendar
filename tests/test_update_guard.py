@@ -2,13 +2,14 @@
 import json
 import tempfile
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
 from event_integrity import combine_performance, same_performance, source_rank
 from update_events import (
     dedupe, is_non_event_guide_notice, is_stale_event_guide_notice, load_required_events,
-    parse_event_guide,
+    parse_event_guide, park_event_from_page,
 )
 
 
@@ -76,6 +77,32 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(source_rank(event, "title"), 2)
         self.assertEqual(source_rank(event, "hall"), 2)
         self.assertEqual(source_rank(event, "time"), 2)
+
+    def test_city_event_calendar_uses_city_rank_not_event_official_rank(self):
+        event_date = date.today() + timedelta(days=30)
+        html = f"""
+        <html><body>
+          <h1>稲沢まつり</h1>
+          <p>開催日 {event_date.year}年{event_date.month}月{event_date.day}日</p>
+          <p>開催時間 10時00分〜16時00分</p>
+          <p>開催場所 文化の丘公園ほか</p>
+        </body></html>
+        """
+        response = type("Response", (), {"text": html})()
+        url = "https://www.city.inazawa.aichi.jp/0000000913.html"
+        with patch("update_events.get", return_value=response):
+            rows = park_event_from_page(url, "city_event_calendar")
+        self.assertEqual(len(rows), 1)
+        event = rows[0]
+        self.assertEqual(event["source"], "city_event_calendar")
+        self.assertEqual(event["source_type"], "city_event_calendar")
+        self.assertEqual(event["source_url"], url)
+        self.assertTrue(event["source_verified"])
+        self.assertEqual(source_rank(event, "date"), 2)
+        self.assertEqual(source_rank(event, "title"), 2)
+        self.assertEqual(source_rank(event, "time"), 2)
+        self.assertEqual(source_rank(event, "hall"), 0)
+
 
     def test_recruitment_notices_are_not_calendar_events(self):
         for title in (
