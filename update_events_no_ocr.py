@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 """Canonical production updater entrypoint.
 
-The base updater has no OCR execution path. This wrapper also replaces the
-legacy JR brochure parser with JR Central's official web/API source.
+The updater has no OCR execution path. JR Central Sawayaka Walking data is
+provided by the official web/API parser imported by update_events.py.
 """
-import update_events as updater
-from jr_walking_web import parse_jr_inazawa_walks
+from update_events import main
 
-
-updater.parse_jr_inazawa_walks = parse_jr_inazawa_walks
 
 if __name__ == "__main__":
-    updater.main()
+    main()

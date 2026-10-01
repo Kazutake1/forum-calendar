@@ -9,6 +9,7 @@
 - Pythonの自動統合とJavaScriptの手動統合で同じ共通contract fixtureを実行し、開場時刻補完・別時刻公演分離・公演IDによる訂正・市公式>Xの優先順位が片側だけ変わった場合にCIで検知するよう改善。
 - no-OCR方針に合わせ、未使用だった旧 `schedule_ocr` source_type を `event-policy.json` と契約テストから削除。公開データに同source_typeが存在しないことを確認済み。
 - Service Workerのポリシー検証をランク構造・必須source_type・ホスト制約まで強化し、手動イベントも `manual_source_types`・Xホスト・市公式確認条件を満たす場合だけ保存するよう変更。未知のsource_typeや壊れたランク構造では正常キャッシュを上書きしない。キャッシュ世代を `r2` へ更新。
+- `update_events.py` に残っていた旧JR東海パンフレットPDF解析（`pdftotext`）を削除し、`jr_walking_web.py` の公式Web/API実装へ一本化。wrapperの関数差し替えも廃止し、JR通信は専用の許可ホスト検証だけを通る構造へ整理。
 
 ## Ver.9.3.7 — 構造・運用基盤の整理（2026-10-02）
 - 月次手動イベント管理Workflowの依存パッケージ不足を修正し、全Pythonテストを正常実行できるようにした。
