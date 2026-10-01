@@ -1,8 +1,9 @@
 const CACHE='forum-calendar-v9-3-7';
 const AUTO_DATA='./events.json';
+const POLICY_DATA='./event-policy.json';
 const MANUAL_DATA='./manual_events.json';
 const VERIFIED_DATA='./verified_schedule.json';
-const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png',AUTO_DATA,'./manual-events.js',MANUAL_DATA,'./verified-schedule.js',VERIFIED_DATA];
+const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png',AUTO_DATA,POLICY_DATA,'./manual-events.js',MANUAL_DATA,'./verified-schedule.js',VERIFIED_DATA];
 const DATA_PATHS=['/update-meta.json'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(STATIC)))});
 self.addEventListener('activate',e=>{e.waitUntil(Promise.all([self.clients.claim(),caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('forum-calendar-')&&k!==CACHE).map(k=>caches.delete(k))))]))});
