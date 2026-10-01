@@ -50,7 +50,7 @@ def clean(s, limit=240):
 def is_non_event_guide_notice(title):
     """Return True for recruitment/notice headings, not actual performances."""
     t=clean(title,240)
-    return bool(re.search(r"募集(?:中|[（(][^）)]*[）)]|のお知らせ|について|[!！。.]*)\s*$",t))
+    return bool(re.search(r"募集(?:中|します|しています|受付中|要項|[（(][^）)]*[）)]|のお知らせ|について|[!！。.]*)\s*$",t))
 
 def is_stale_event_guide_notice(event):
     sources=str(event.get("source") or "").split("+")
