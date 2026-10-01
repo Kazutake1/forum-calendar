@@ -47,6 +47,15 @@ def clean(s, limit=240):
     s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", str(s or ""))
     return re.sub(r"\s+", " ", s.replace("\u3000", " ")).strip()[:limit]
 
+def is_non_event_guide_notice(title):
+    """Return True for recruitment/notice headings, not actual performances."""
+    t=clean(title,240)
+    return bool(re.search(r"募集(?:中|[（(][^）)]*[）)]|のお知らせ|について|[!！。.]*)\s*$",t))
+
+def is_stale_event_guide_notice(event):
+    sources=str(event.get("source") or "").split("+")
+    return "event_guide" in sources and is_non_event_guide_notice(event.get("title",""))
+
 def get(url):
     u = urlparse(url)
     if u.scheme != "https" or u.hostname not in ALLOWED_HOSTS:
@@ -238,7 +247,7 @@ def parse_event_guide(event_guide):
     r=get(event_guide); soup=BeautifulSoup(r.text,"html.parser"); events=[]
     for h in soup.find_all(["h2","h3","h4"]):
         title=clean(h.get_text(" ",strip=True))
-        if not title or any(x in title for x in ["開催日","チケット","お問い合わせ","料金","会場"]): continue
+        if not title or any(x in title for x in ["開催日","チケット","お問い合わせ","料金","会場"]) or is_non_event_guide_notice(title): continue
         chunk=[]; cur=h
         for _ in range(12):
             cur=cur.find_next()
@@ -420,7 +429,7 @@ def verified_schedule_lock():
 
 
 def main():
-    old=dedupe(load_required_events(EVENTS_FILE)); old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
+    old=dedupe(load_required_events(EVENTS_FILE)); old=[e for e in old if not is_stale_event_guide_notice(e)]; old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
     previous_urls=old_meta.get("resolved_urls") or {}; event_guide_pref=previous_urls.get("events") or DEFAULT_EVENT_GUIDE; schedule_page_pref=previous_urls.get("schedule") or DEFAULT_SCHEDULE_PAGE; event_guide=event_guide_pref; schedule_page=schedule_page_pref
     try: event_guide,mode=discover_page("events",event_guide_pref); notes.append(f"イベント案内URL: {mode} {event_guide}")
     except Exception as e: notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")
