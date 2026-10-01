@@ -7,7 +7,8 @@ const records = name => JSON.parse(fs.readFileSync(path.join(root,name),'utf8'))
 const originalAuto = records('events.json');
 const originalManual = records('manual_events.json');
 const verified = records('verified_schedule.json');
-const ctx = {window:{}, URL, console, linkInfo:()=>({url:'',label:''})};
+const policy = records('event-policy.json');
+const ctx = {window:{FORUM_EVENT_POLICY:policy}, URL, console, linkInfo:()=>({url:'',label:''})};
 vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root,'manual-events.js'),'utf8'),ctx);
 vm.runInContext(fs.readFileSync(path.join(root,'verified-schedule.js'),'utf8'),ctx);
