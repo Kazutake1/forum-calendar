@@ -17,7 +17,7 @@ permissions:
   pages: write
 
 concurrency:
-  group: monthly-manual-events
+  group: forum-calendar-main-write
   cancel-in-progress: false
 
 jobs:
