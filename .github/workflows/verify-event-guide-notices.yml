@@ -69,6 +69,25 @@ jobs:
           print('PASS: recruitment notices excluded; exact same-source duplicates deduped; distinct showtimes preserved')
           print('live event guide rows after filter=',len(live))
           PY
+      - name: Run production updater twice without OCR and verify no recurrence
+        run: |
+          python update_events_no_ocr.py
+          cp events.json /tmp/events-first.json
+          python update_events_no_ocr.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import update_events as u
+          first=json.loads(Path('/tmp/events-first.json').read_text(encoding='utf-8'))
+          second=json.loads(Path('events.json').read_text(encoding='utf-8'))
+          for label,events in [('first',first),('second',second)]:
+              assert not any(u.is_stale_event_guide_notice(e) for e in events), label
+              march=[e for e in events if e.get('date')=='2027-03-22']
+              assert len(march)==1, (label,march)
+              assert march[0]['title']=='ワンコインコンサートスペシャル 音楽三昧「ドイツ編」'
+          assert first==second, 'repeated updater run changed event records'
+          print('PASS: production no-OCR updater is idempotent and recruitment notice does not return')
+          PY
       - name: Diff hygiene
         run: |
           git diff --check
