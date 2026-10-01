@@ -176,7 +176,8 @@ async function testManualServiceWorker() {
       self: { location: { origin: 'https://calendar.example' },
         addEventListener: (name, fn) => { listeners[name] = fn; } },
       URL, Response, Headers, console, fetch: fetcher,
-      caches: { match: async () => cached, open: async () => ({ put }) }
+      caches: { match: async () => cached && typeof cached.clone === 'function' ? cached.clone() : cached,
+        open: async () => ({ put }) }
     });
     vm.runInContext(fs.readFileSync('sw.js', 'utf8'), sw);
     let pending;
