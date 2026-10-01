@@ -308,7 +308,28 @@ async function loadAutoData(){
   view=new Date(now.getFullYear(),now.getMonth(),1);
   showDate(key(now.getFullYear(),now.getMonth(),now.getDate()));
 }
-loadAutoData().then(() => {
+async function loadEventPolicy(){
+  const response=await fetch('./event-policy.json?ts='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw new Error(`event-policy.json: HTTP ${response.status}`);
+  const policy=await response.json();
+  if(!policy||policy.schema_version!==1||typeof policy.city_host!=='string'||
+     !Array.isArray(policy.x_hosts)||!Array.isArray(policy.merge_fields)||
+     !Array.isArray(policy.manual_source_types)||!Array.isArray(policy.source_groups))
+    throw new Error('イベント出典ポリシーの形式が不正です');
+  window.FORUM_EVENT_POLICY=policy;
+}
+loadAutoData().then(async () => {
+  try{
+    await loadEventPolicy();
+  }catch(error){
+    console.error('イベント出典ポリシーの読み込みに失敗しました',error);
+    const status=document.querySelector('#autoUpdated');
+    if(status){
+      status.classList.add('stale');
+      status.textContent+=' ・ イベント出典ルールの読込失敗';
+    }
+    return;
+  }
   const script = document.createElement('script');
   script.src = './manual-events.js?v=937';
   script.onload = async () => {
