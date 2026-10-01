@@ -1,0 +1,60 @@
+name: Verify calendar weekend and holiday colors
+
+on:
+  push:
+    branches:
+      - calendar-weekend-holiday-colors-20261001
+    paths:
+      - .github/workflows/verify-calendar-day-colors.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: calendar-weekend-holiday-colors-20261001
+      - name: Check JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          html=Path('index.html').read_text(encoding='utf-8')
+          js=html.split('<script>',1)[1].rsplit('</script>',1)[0]
+          Path('/tmp/forum-calendar.js').write_text(js,encoding='utf-8')
+          PY
+          node --check /tmp/forum-calendar.js
+      - name: Verify weekend and Japanese holiday coloring logic
+        run: |
+          node <<'JS'
+          const fs=require('fs');
+          const assert=require('assert');
+          const vm=require('vm');
+          const html=fs.readFileSync('index.html','utf8');
+          const script=html.split('<script>')[1].split('</script>')[0];
+          const start=script.indexOf('const key=');
+          const end=script.indexOf('const cls=',start);
+          assert(start>=0&&end>start,'holiday helper block not found');
+          const helper=script.slice(start,end);
+          const context={Date,Math,Map,Set,String};
+          vm.createContext(context);
+          vm.runInContext(helper+';this.testHoliday=isJapaneseHoliday;',context);
+          const holiday=context.testHoliday;
+          assert.strictEqual(holiday(2026,4,6),true,'2026-05-06 substitute holiday');
+          assert.strictEqual(holiday(2026,8,22),true,'2026-09-22 citizens holiday');
+          assert.strictEqual(holiday(2026,10,3),true,'2026-11-03 Culture Day');
+          assert.strictEqual(holiday(2026,9,3),false,'2026-10-03 is Saturday, not a holiday');
+          assert.strictEqual(holiday(2026,9,4),false,'2026-10-04 is Sunday, not a statutory holiday');
+          assert.strictEqual(new Date(2026,9,3).getDay(),6,'2026-10-03 Saturday');
+          assert.strictEqual(new Date(2026,9,4).getDay(),0,'2026-10-04 Sunday');
+          assert(html.includes('.dow.sunday,.day.sunday .num,.day.holiday .num{color:#dc2626}'));
+          assert(html.includes('.dow.saturday,.day.saturday:not(.holiday) .num{color:#2563eb}'));
+          assert(html.includes("i===0?' sunday':i===6?' saturday':''"));
+          assert(html.includes("if(isJapaneseHoliday(y,m,d))b.classList.add('holiday')"));
+          console.log('PASS: Sunday/holiday red, Saturday blue, holiday precedence preserved');
+          JS
+      - name: Diff hygiene
+        run: |
+          git diff --check
