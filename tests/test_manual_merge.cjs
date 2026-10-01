@@ -104,7 +104,7 @@ const contractCases = JSON.parse(fs.readFileSync('tests/event_merge_contract.jso
 for (const testCase of contractCases) {
   const contractResult = merge(testCase.base, testCase.manual);
   assert.equal(contractResult.length, testCase.expected.count, testCase.name);
-  assert.deepEqual(contractResult.map(e => e.time || ''), testCase.expected.times, testCase.name);
+  assert.deepEqual(Array.from(contractResult, e => e.time || ''), testCase.expected.times, testCase.name);
   if (Object.hasOwn(testCase.expected, 'price')) {
     assert.equal(contractResult[0].price, testCase.expected.price, testCase.name);
   }
