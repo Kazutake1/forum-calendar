@@ -79,6 +79,19 @@ assert.equal(result[0].field_sources.time.source_type,'event_official');
 result=merge([base('開演18:00',{price:'500円'})], [manual('x-price','開演18:00',{price:'2000円',source_verified:true,verified_fields:['price']})]);
 assert.equal(result[0].price,'500円');
 
+// City event guide and the verified city schedule are distinct source types but the same rank.
+assert.throws(() => merge([
+  base('開演18:00',{price:'市公式イベント案内価格',source_type:'city_event_guide',
+    source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',
+    source_verified:true,verified_fields:['price']})
+], [manual('schedule-price','開演18:00',{price:'催事予定表価格',source_type:'city_schedule',
+  source_url:'https://www.city.inazawa.aichi.jp/ica/0000004875.html',
+  source_verified:true,verified_fields:['price']})]), /同順位の出典/);
+
+const indexHtml = fs.readFileSync('index.html','utf8');
+assert.ok(indexHtml.includes("e.source_type==='city_event_guide'&&e.source_url"));
+assert.ok(indexHtml.includes("label:'会館公式イベント案内'"));
+
 // Equal-tier reports with the same start are compatible even when only one gives door time.
 result=merge([base('開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})],
  [manual('opening-city','開場17:30／開演18:00',{source_type:'city_schedule',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified:true,verified_fields:['time']})]);
