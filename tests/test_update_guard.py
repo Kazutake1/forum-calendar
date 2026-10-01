@@ -3,10 +3,12 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from event_integrity import combine_performance, same_performance, source_rank
 from update_events import (
     dedupe, is_non_event_guide_notice, is_stale_event_guide_notice, load_required_events,
+    parse_event_guide,
 )
 
 
@@ -52,6 +54,28 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(combine_performance(official, x)["price"], "公式価格")
         self.assertEqual(source_rank(dict(official, event_specific=False), "price"), 0)
 
+
+    def test_event_guide_has_distinct_city_source_type(self):
+        html = """
+        <html><body>
+          <h2>テストコンサート</h2>
+          <p>開催日 令和9年3月22日</p>
+          <p>会場 大ホール</p>
+          <p>開催時間 14時00分</p>
+        </body></html>
+        """
+        response = type("Response", (), {"text": html})()
+        with patch("update_events.get", return_value=response):
+            rows = parse_event_guide("https://www.city.inazawa.aichi.jp/ica/0000002507.html")
+        self.assertEqual(len(rows), 1)
+        event = rows[0]
+        self.assertEqual(event["source"], "event_guide")
+        self.assertEqual(event["source_type"], "city_event_guide")
+        self.assertEqual(event["source_url"], "https://www.city.inazawa.aichi.jp/ica/0000002507.html")
+        self.assertEqual(source_rank(event, "date"), 2)
+        self.assertEqual(source_rank(event, "title"), 2)
+        self.assertEqual(source_rank(event, "hall"), 2)
+        self.assertEqual(source_rank(event, "time"), 2)
 
     def test_recruitment_notices_are_not_calendar_events(self):
         for title in (
