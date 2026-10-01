@@ -27,6 +27,8 @@ html[data-theme="dark"] .dotLarge{background:#fca5a5}html[data-theme="dark"] .do
 .monthbar{display:flex;align-items:center;gap:8px;margin:2px 0 10px}.nav{width:44px;height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px}#monthLabel{flex:1;text-align:center;font-weight:800;font-size:18px}.todayBtn{min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:12px;padding:0 12px}
 .grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;touch-action:pan-y;overscroll-behavior-x:contain}
 .dow{font-size:11px;text-align:center;color:var(--muted);padding:5px 0 7px}
+.dow.sunday,.day.sunday .num,.day.holiday .num{color:#dc2626}.dow.saturday,.day.saturday:not(.holiday) .num{color:#2563eb}
+html[data-theme="dark"] .dow.sunday,html[data-theme="dark"] .day.sunday .num,html[data-theme="dark"] .day.holiday .num{color:#f87171}html[data-theme="dark"] .dow.saturday,html[data-theme="dark"] .day.saturday:not(.holiday) .num{color:#60a5fa}
 .day{min-width:0;min-height:96px;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:6px;text-align:left;color:var(--text);overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch}
 .day.blank{visibility:hidden}
 .day.today{border:2px solid #f59e0b!important}
@@ -77,6 +79,35 @@ let view=new Date(2026,7,1),filter='all',query='',selected=null;
 const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
 const cal=$('#calendar'),ml=$('#monthLabel'),dt=$('#dateTitle'),hint=$('#detailHint'),det=$('#details'),search=$('#search'),clear=$('#clearSearch');
 const key=(y,m,d)=>`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+const holidayCache=new Map();
+function japaneseHolidayKeys(year){
+  if(holidayCache.has(year))return holidayCache.get(year);
+  const named=new Set(),all=new Set();
+  const add=(month,day)=>named.add(key(year,month-1,day));
+  const nthMonday=(month,n)=>{const first=new Date(year,month-1,1).getDay();return 1+((1-first+7)%7)+(n-1)*7};
+  const vernal=Math.floor(20.8431+0.242194*(year-1980)-Math.floor((year-1980)/4));
+  const autumnal=Math.floor(23.2488+0.242194*(year-1980)-Math.floor((year-1980)/4));
+  add(1,1);add(1,nthMonday(1,2));add(2,11);if(year>=2020)add(2,23);add(3,vernal);add(4,29);add(5,3);add(5,4);add(5,5);add(7,nthMonday(7,3));add(8,11);add(9,nthMonday(9,3));add(9,autumnal);add(10,nthMonday(10,2));add(11,3);add(11,23);
+  named.forEach(k=>all.add(k));
+  for(let d=new Date(year,0,2);d<new Date(year,11,31);d.setDate(d.getDate()+1)){
+    const cur=key(d.getFullYear(),d.getMonth(),d.getDate());
+    if(all.has(cur))continue;
+    const prev=new Date(d);prev.setDate(prev.getDate()-1);
+    const next=new Date(d);next.setDate(next.getDate()+1);
+    const pk=key(prev.getFullYear(),prev.getMonth(),prev.getDate()),nk=key(next.getFullYear(),next.getMonth(),next.getDate());
+    if(named.has(pk)&&named.has(nk))all.add(cur);
+  }
+  for(const k of named){
+    const [y,m,d]=k.split('-').map(Number),date=new Date(y,m-1,d);
+    if(date.getDay()!==0)continue;
+    const sub=new Date(date);sub.setDate(sub.getDate()+1);
+    while(all.has(key(sub.getFullYear(),sub.getMonth(),sub.getDate())))sub.setDate(sub.getDate()+1);
+    if(sub.getFullYear()===year)all.add(key(year,sub.getMonth(),sub.getDate()));
+  }
+  holidayCache.set(year,all);
+  return all;
+}
+function isJapaneseHoliday(y,m,d){return japaneseHolidayKeys(y).has(key(y,m,d))}
 const cls=h=>h==='大ホール'?'large':h==='中ホール'?'mid':h==='小ホール'?'small':h==='文化の丘公園'?'park':h==='JR稲沢駅'?'jr':'other';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const safeHref=v=>{try{const u=new URL(String(v||''),location.href);return ['https:','http:'].includes(u.protocol)?u.href:'#'}catch(e){return '#'}};
@@ -111,7 +142,7 @@ function googleUrl(e){
 function detailHallRank(e){const vs=venuesOf(e);return vs.includes('大ホール')?0:vs.includes('中ホール')?1:vs.includes('小ホール')?2:3}
 function detailsHTML(es){return es.length?es.slice().sort((a,b)=>detailHallRank(a)-detailHallRank(b)).map(e=>{const li=linkInfo(e),vs=venuesOf(e),hasHall=vs.some(v=>['大ホール','中ホール','小ホール'].includes(v));return `<div class="item"><div class="title">${esc(e.title)}</div><div class="meta">${badges(e)}${e.time?`<br>時間：${esc(e.time)}`:''}${e.detail_review?.status==='要確認'?`<br><strong>要確認</strong>：${esc(e.detail_review.note||'公式資料との食い違いがあります。')}${e.detail_review.conflicting_source_url?` <a href="${esc(safeHref(e.detail_review.conflicting_source_url))}" target="_blank" rel="noopener">異なる記載の出典</a>`:''}`:''}</div><div class="actions"><a class="linkBtn" href="${esc(safeHref(li.url))}" target="_blank" rel="noopener">${esc(li.label)}</a><a class="linkBtn" href="${esc(safeHref(googleUrl(e)))}" target="_blank" rel="noopener">Googleで検索</a></div></div>`}).join(''):'<div class="meta">該当する公開イベントはありません。</div>'}
 function showDate(k){selected=k;const es=EVENTS.filter(e=>e.date===k&&matches(e));dt.textContent=dateJP(k);hint.textContent=`${es.length}件`;det.innerHTML=detailsHTML(es);renderCalendar()}
-function renderCalendar(){const y=view.getFullYear(),m=view.getMonth();ml.textContent=`${y}年 ${m+1}月`;cal.innerHTML=['日','月','火','水','木','金','土'].map(x=>`<div class="dow">${x}</div>`).join('');const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();for(let i=0;i<first;i++){const x=document.createElement('div');x.className='day blank';cal.appendChild(x)}for(let d=1;d<=days;d++){const k=key(y,m,d),es=EVENTS.filter(e=>e.date===k&&matches(e)),b=document.createElement('button');b.type='button';b.className='day';const n=new Date();if(n.getFullYear()===y&&n.getMonth()===m&&n.getDate()===d)b.classList.add('today');if(selected===k)b.classList.add('selected');b.innerHTML=`<div class="num">${d}</div>`+es.slice(0,3).map(e=>`<div class="ev ${cls(primaryVenue(e))}">${esc(e.title)}</div>`).join('')+(es.length>3?`<div class="ev">+${es.length-3}件</div>`:'');b.onclick=()=>showDate(k);cal.appendChild(b)}}
+function renderCalendar(){const y=view.getFullYear(),m=view.getMonth();ml.textContent=`${y}年 ${m+1}月`;cal.innerHTML=['日','月','火','水','木','金','土'].map((x,i)=>`<div class="dow${i===0?' sunday':i===6?' saturday':''}">${x}</div>`).join('');const first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate();for(let i=0;i<first;i++){const x=document.createElement('div');x.className='day blank';cal.appendChild(x)}for(let d=1;d<=days;d++){const k=key(y,m,d),es=EVENTS.filter(e=>e.date===k&&matches(e)),b=document.createElement('button'),weekday=new Date(y,m,d).getDay();b.type='button';b.className='day';if(weekday===0)b.classList.add('sunday');else if(weekday===6)b.classList.add('saturday');if(isJapaneseHoliday(y,m,d))b.classList.add('holiday');const n=new Date();if(n.getFullYear()===y&&n.getMonth()===m&&n.getDate()===d)b.classList.add('today');if(selected===k)b.classList.add('selected');b.innerHTML=`<div class="num">${d}</div>`+es.slice(0,3).map(e=>`<div class="ev ${cls(primaryVenue(e))}">${esc(e.title)}</div>`).join('')+(es.length>3?`<div class="ev">+${es.length-3}件</div>`:'');b.onclick=()=>showDate(k);cal.appendChild(b)}}
 function renderList(){const es=EVENTS.filter(matches).sort((a,b)=>a.date.localeCompare(b.date)||String(a.time ?? '').localeCompare(String(b.time ?? '')));$('#resultCount').textContent=`${es.length}件`;$('#eventList').innerHTML=es.length?es.map(e=>`<div class="eventCard"><button type="button" data-date="${e.date}"><div class="dateLine">${dateJP(e.date)}${e.time?' ・ '+esc(e.time):''}</div><div class="title">${esc(e.title)}</div><div class="meta">${badges(e)}</div></button></div>`).join(''):'<div class="eventCard"><div class="meta">条件に一致するイベントはありません。</div></div>';$$('#eventList button[data-date]').forEach(b=>b.onclick=()=>{const p=b.dataset.date.split('-').map(Number);view=new Date(p[0],p[1]-1,1);switchTab('calendar');showDate(b.dataset.date);if(!(window.matchMedia&&window.matchMedia('(min-width:900px) and (orientation:landscape)').matches))setTimeout(()=>document.querySelector('.detail').scrollIntoView({behavior:'smooth',block:'start'}),50)})}
 function refresh(){renderCalendar();renderList();if(selected){const es=EVENTS.filter(e=>e.date===selected&&matches(e));hint.textContent=`${es.length}件`;det.innerHTML=detailsHTML(es)}}
 function switchTab(name){$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));$('#calendarView').classList.toggle('hidden',name!=='calendar');$('#listView').classList.toggle('hidden',name!=='list');if(name==='list')renderList()}
