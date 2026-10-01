@@ -233,7 +233,7 @@ def parse_event_guide(event_guide):
             if not dm: continue
             year,month,day=map(int,dm.groups())
         hall=next((hh for hh in HALLS if hh in ctx),"その他"); tm=re.search(r"(\d{1,2})時(\d{2})分",ctx); time=f"{int(tm.group(1))}:{tm.group(2)}〜" if tm else ""; cleaned=re.sub(r"^[〖【].*?[〗】]\s*","",title)
-        events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide,"source_type":"city_schedule","source_url":event_guide,"source_verified":True,"verified_fields":["date","title"]+(["hall"] if hall!="その他" else [])+(["time"] if tm else [])})
+        events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide,"source_type":"city_event_guide","source_url":event_guide,"source_verified":True,"verified_fields":["date","title"]+(["hall"] if hall!="その他" else [])+(["time"] if tm else [])})
     return dedupe(events)
 
 def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
