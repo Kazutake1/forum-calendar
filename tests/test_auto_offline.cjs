@@ -43,7 +43,8 @@ async function main() {
   };
 
   vm.createContext(context);
-  vm.runInContext(fs.readFileSync(path.join(root, 'sw.js'), 'utf8'), context);
+  const swSource = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
+  vm.runInContext(swSource, context);
 
   const dispatch = async suffix => {
     let answer;
@@ -80,8 +81,14 @@ async function main() {
   assert.ok(!html.includes('FALLBACK_EVENTS'), 'hard-coded automatic fallback must not return');
   assert.ok(html.includes('let EVENTS=[];'), 'automatic events should start empty and come from events.json');
   assert.ok(html.includes('X-Forum-Events-Cache'), 'UI must detect saved automatic event data');
+  assert.ok(swSource.includes("POLICY_DATA='./event-policy.json'"), 'shared event policy must be cached for offline use');
+  const policy = JSON.parse(fs.readFileSync(path.join(root, 'event-policy.json'), 'utf8'));
+  assert.equal(policy.schema_version, 1);
+  const policyLoad = html.indexOf('await loadEventPolicy()');
+  const manualLoad = html.indexOf("script.src = './manual-events.js");
+  assert.ok(policyLoad >= 0 && manualLoad > policyLoad, 'event policy must load before manual merge code');
 
-  console.log('PASS: events.json is the single source and saved automatic data is used offline');
+  console.log('PASS: events.json is the single source and shared event policy is available before offline overlays');
 }
 
 main().catch(error => {
