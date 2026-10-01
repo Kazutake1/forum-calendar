@@ -41,6 +41,11 @@ async function main() {
       const requestUrl = String(request && request.url || request || '');
       if (requestUrl.includes('event-policy.json')) {
         if (mode === 'policy-malformed') return new Response('{"schema_version":1}', {status: 200, headers: {'Content-Type': 'application/json'}});
+        if (mode === 'policy-rank-invalid') {
+          const invalid = JSON.parse(JSON.stringify(sourcePolicy));
+          invalid.source_groups.find(group => group.name === 'city_official').rank = 3;
+          return new Response(JSON.stringify(invalid), {status: 200, headers: {'Content-Type': 'application/json'}});
+        }
         return new Response(policyText, {status: 200, headers: {'Content-Type': 'application/json'}});
       }
       if (mode === 'offline') throw new Error('network offline');
@@ -96,6 +101,12 @@ async function main() {
   assert.equal(policyFallback.headers.get('X-Forum-Policy-Cache'), 'stale');
   assert.deepEqual(await policyFallback.json(), sourcePolicy, 'invalid policy must not replace the saved policy');
 
+  mode = 'policy-rank-invalid';
+  const rankFallback = await dispatch('event-policy.json', 'policy-rank-invalid');
+  assert.equal(rankFallback.headers.get('X-Forum-Policy-Cache'), 'stale');
+  assert.deepEqual(await rankFallback.json(), sourcePolicy, 'wrong source ranks must not replace the saved policy');
+  assert.deepEqual(JSON.parse(stored.get('./event-policy.json')), sourcePolicy);
+
   stored.clear();
   mode = 'offline';
   await assert.rejects(dispatchEvents('no-cache'), /network offline/);
@@ -105,6 +116,7 @@ async function main() {
   assert.ok(html.includes('let EVENTS=[];'), 'automatic events should start empty and come from events.json');
   assert.ok(html.includes('X-Forum-Events-Cache'), 'UI must detect saved automatic event data');
   assert.ok(swSource.includes("POLICY_DATA='./event-policy.json'"), 'shared event policy must be cached for offline use');
+  assert.ok(swSource.includes("const CACHE='forum-calendar-v9-3-7-r2'"), 'semantic validation changes must use a fresh cache generation');
   const staticLine = swSource.split('\n').find(line => line.startsWith('const STATIC='));
   assert.ok(staticLine && !/AUTO_DATA|POLICY_DATA|MANUAL_DATA|VERIFIED_DATA/.test(staticLine),
     'semantic JSON data must not be blindly precached by cache.addAll');

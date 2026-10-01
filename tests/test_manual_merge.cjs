@@ -183,11 +183,15 @@ testManualRecovery().catch(e => { console.error(e); process.exitCode = 1; });
 async function testManualServiceWorker() {
   const run = async (fetcher, cached, put) => {
     const listeners = {};
+    const policyCached = new Response(JSON.stringify(policy), {status: 200, headers: {'Content-Type': 'application/json'}});
     const sw = vm.createContext({
       self: { location: { origin: 'https://calendar.example' },
         addEventListener: (name, fn) => { listeners[name] = fn; } },
       URL, Response, Headers, console, fetch: fetcher,
-      caches: { match: async () => cached && typeof cached.clone === 'function' ? cached.clone() : cached,
+      caches: { match: async key => {
+          if (String(key) === './event-policy.json') return policyCached.clone();
+          return cached && typeof cached.clone === 'function' ? cached.clone() : cached;
+        },
         open: async () => ({ put }) }
     });
     vm.runInContext(fs.readFileSync('sw.js', 'utf8'), sw);
@@ -207,6 +211,19 @@ async function testManualServiceWorker() {
 
   result = await run(async () => new Response('[{}]', { status: 200 }), cached,
     async () => { throw Error('invalid manual payload must not be cached'); });
+  assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
+  assert.equal((await result.json()).length, publishedManual.length);
+
+  const invalidSource = [{...publishedManual[0], id: 'invalid-source-type', source_type: 'not_allowed'}];
+  result = await run(async () => new Response(JSON.stringify(invalidSource), { status: 200 }), cached,
+    async () => { throw Error('unknown source_type must not be cached'); });
+  assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
+  assert.equal((await result.json()).length, publishedManual.length);
+
+  const invalidX = [{...publishedManual[0], id: 'invalid-x-host', source_type: 'x',
+    source_url: 'https://example.org/not-x'}];
+  result = await run(async () => new Response(JSON.stringify(invalidX), { status: 200 }), cached,
+    async () => { throw Error('invalid X host must not be cached'); });
   assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
   assert.equal((await result.json()).length, publishedManual.length);
 
