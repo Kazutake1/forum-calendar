@@ -1,6 +1,19 @@
 /* Manual events overlay. Never writes to or replaces events.json. */
 (() => {
   'use strict';
+  const POLICY=window.FORUM_EVENT_POLICY;
+  if(!POLICY||POLICY.schema_version!==1||typeof POLICY.city_host!=='string'||
+     !Array.isArray(POLICY.x_hosts)||!Array.isArray(POLICY.merge_fields)||
+     !Array.isArray(POLICY.manual_source_types)||!Array.isArray(POLICY.source_groups))
+    throw new Error('イベント出典ポリシーの形式が不正です');
+  const CITY_HOST=POLICY.city_host;
+  const X_HOSTS=new Set(POLICY.x_hosts);
+  const MERGE_FIELDS=[...POLICY.merge_fields];
+  const MANUAL_SOURCE_TYPES=new Set(POLICY.manual_source_types);
+  const SOURCE_GROUPS=POLICY.source_groups.map(group=>({...group,
+    source_types:new Set(group.source_types||[]),
+    hosts:Array.isArray(group.hosts)?new Set(group.hosts):null,
+    forbidden_hosts:Array.isArray(group.forbidden_hosts)?new Set(group.forbidden_hosts):null}));
   const normalizeTitle = value => String(value || '').normalize('NFKC').toLowerCase()
     .replace(/[\s\u3000「」『』【】（）()・.,。,:：!?！？"'“”‘’]/g, '');
   const validDate = value => {
@@ -17,7 +30,7 @@
   const verifiedCity = event => {
     const url=sourceUrl(event);
     return event.source_type==='city_official' && event.source_verified===true &&
-      Boolean(url) && new URL(url).hostname==='www.city.inazawa.aichi.jp';
+      Boolean(url) && new URL(url).hostname===CITY_HOST;
   };
   const fieldEvidence = (e,field) => {
     const stored=e.field_sources && e.field_sources[field];
@@ -34,12 +47,14 @@
     if(info.verified!==true)return 0;
     let url;
     try{url=new URL(info.source_url);if(url.protocol!=='https:')return 0;}catch(_){return 0;}
-    const kind=info.source_type;
-    if(['event_official','organizer','promoter'].includes(kind)&&info.event_specific===true&&
-       !['x.com','www.x.com','twitter.com','www.twitter.com'].includes(url.hostname))return 3;
-    if(url.hostname==='www.city.inazawa.aichi.jp'&&
-       ['city_schedule','city_official','city_event_guide','event_guide','city_event_calendar','schedule_ocr'].includes(kind))return 2;
-    if(kind==='x'&&['x.com','www.x.com','twitter.com','www.twitter.com'].includes(url.hostname))return 1;
+    const kind=String(info.source_type||'');
+    for(const group of SOURCE_GROUPS){
+      if(!group.source_types.has(kind))continue;
+      if(group.require_event_specific===true&&info.event_specific!==true)continue;
+      if(group.hosts&&group.hosts.size&&!group.hosts.has(url.hostname))continue;
+      if(group.forbidden_hosts&&group.forbidden_hosts.has(url.hostname))continue;
+      return Number.isInteger(group.rank)?group.rank:0;
+    }
     return 0;
   };
   const venues = event => Array.isArray(event.venues) && event.venues.length
@@ -74,10 +89,10 @@
         !validDate(raw.date) || typeof raw.title !== 'string' ||
         raw.title.trim().length < 2 || typeof raw.hall !== 'string' ||
         !raw.hall.trim() || typeof raw.id !== 'string' || !raw.id.trim() ||
-        ids.has(raw.id) || !['x', 'city_official', 'city_schedule', 'event_official', 'organizer', 'promoter', 'other'].includes(raw.source_type) ||
+        ids.has(raw.id) || !MANUAL_SOURCE_TYPES.has(raw.source_type) ||
         (raw.distinct_performance !== undefined && typeof raw.distinct_performance !== 'boolean') ||
         !sourceUrl(raw)) throw new Error('手動イベントデータの形式が不正です');
-    if (raw.source_type === 'x' && !['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com'].includes(new URL(sourceUrl(raw)).hostname)) {
+    if (raw.source_type === 'x' && !X_HOSTS.has(new URL(sourceUrl(raw)).hostname)) {
       throw new Error('X投稿の出典URLが不正です');
     }
     ids.add(raw.id);
@@ -87,7 +102,7 @@
         if(!validDate(raw.match.date)||typeof raw.match.title!=='string'||
            !raw.match.title.trim()||raw.match.confirmed!==true||!good||
            (raw.match.correct_fields!==undefined&&(!Array.isArray(raw.match.correct_fields)||
-             raw.match.correct_fields.some(field=>!['date','title','hall','time','price','official_url'].includes(field)))))
+             raw.match.correct_fields.some(field=>!MERGE_FIELDS.includes(field)))))
           throw new Error('重複照合には確認済みの公演と根拠URLが必要です');
       }
       if(raw.distinct_performance){
@@ -118,7 +133,7 @@
       if(!matches.length){result.push(incoming);continue;}
       const current=result[matches[0]], combined={...current,field_sources:{...(current.field_sources||{})}};
       const corrected=Array.isArray(incoming.match?.correct_fields)?incoming.match.correct_fields:[];
-      for(const field of ['date','title','hall','time','price','official_url']){
+      for(const field of MERGE_FIELDS){
         const value=incoming[field];if(value===undefined||value===null||value==='')continue;
         const a=sourceRank(current,field),b=sourceRank(incoming,field);
         if(!current[field]||(b>a&&!(a===0&&b===1))||(incoming.match&&corrected.includes(field)&&b>=a&&!(a===0&&b===1))){
