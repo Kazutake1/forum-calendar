@@ -41,6 +41,8 @@ jobs:
         run: node tests/test_verified_schedule.cjs
       - name: Verified schedule offline regression tests
         run: node tests/test_verified_offline.cjs
+      - name: Automatic event offline cache regression tests
+        run: node tests/test_auto_offline.cjs
       - name: Verify Python and JavaScript syntax
         shell: bash
         run: |
