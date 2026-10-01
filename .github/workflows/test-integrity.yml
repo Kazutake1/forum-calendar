@@ -6,6 +6,8 @@ on:
       - 'index.html'
       - 'sw.js'
       - 'manual-events.js'
+      - 'verified-schedule.js'
+      - 'verified_schedule.json'
       - 'event_integrity.py'
       - 'update_events.py'
       - 'update_events_no_ocr.py'
@@ -35,6 +37,10 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Browser manual merge regression tests
         run: node tests/test_manual_merge.cjs
+      - name: Verified schedule regression tests
+        run: node tests/test_verified_schedule.cjs
+      - name: Verified schedule offline regression tests
+        run: node tests/test_verified_offline.cjs
       - name: Verify Python and JavaScript syntax
         shell: bash
         run: |
@@ -50,6 +56,7 @@ jobs:
           PY
           node --check /tmp/forum-calendar-inline.js
           node --check manual-events.js
+          node --check verified-schedule.js
           node --check sw.js
       - name: Validate published event JSON without altering files
         run: |
