@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: forum-calendar-main-write
+  cancel-in-progress: false
+
 jobs:
   update-events:
     runs-on: ubuntu-latest
