@@ -207,41 +207,12 @@ def find_schedule_pdf(schedule_page):
     if not links: raise RuntimeError("催事予定表PDFが見つかりません")
     return links[0]
 
-def ocr_pdf(pdf_bytes):
-    with tempfile.TemporaryDirectory() as td:
-        pdf=Path(td)/"schedule.pdf"; pdf.write_bytes(pdf_bytes); prefix=Path(td)/"page"
-        subprocess.run(["pdftoppm","-png","-r","240",str(pdf),str(prefix)],check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=90)
-        texts=[]
-        for img in sorted(Path(td).glob("page-*.png")):
-            p=subprocess.run(["tesseract",str(img),"stdout","-l","jpn+eng","--psm","6"],capture_output=True,text=True,check=True,timeout=90); texts.append(p.stdout)
-        return "\n".join(texts)
-
 def infer_year_months(label,pdf_url):
     m=re.search(r"令和\s*(\d+)年\s*(\d+)月.*?(\d+)月",label)
     if m: return 2018+int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     m=re.search(r"(20\d{2})(\d{2})-(\d{2})",pdf_url)
     if m: return int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     n=datetime.now(); return n.year,[n.month]
-
-def parse_schedule_ocr(text,year,months):
-    events=[]; current_month=months[0]
-    for raw in text.splitlines():
-        line=clean(raw,600)
-        if not line: continue
-        mm=re.search(r"(\d{1,2})\s*月",line)
-        if mm and int(mm.group(1)) in months: current_month=int(mm.group(1))
-        hall=next((h for h in HALLS if h in line),"")
-        if not hall: continue
-        dm=re.search(r"(?:^|\s)(\d{1,2})(?:日|\s)",line)
-        if not dm: continue
-        day=int(dm.group(1))
-        try: d=datetime(year,current_month,day).strftime("%Y-%m-%d")
-        except ValueError: continue
-        title=re.sub(rf"(^|\s){day}(日)?(\s|$)"," ",line,count=1).replace(hall," "); title=re.sub(r"\b\d{1,2}:\d{2}\b.*$","",title); title=re.sub(r"\b(無料|関係者|要整理券|会員制)\b.*$","",title); title=clean(title)
-        if len(title)<4: continue
-        tm=re.search(r"(\d{1,2}:\d{2})(?:\s*[〜～~-]\s*(\d{1,2}:\d{2}))?",line); time=tm.group(1)+(f"〜{tm.group(2)}" if tm and tm.group(2) else "〜") if tm else ""; price="無料" if "無料" in line else "関係者" if "関係者" in line else "要整理券" if "要整理券" in line else ""
-        events.append({"date":d,"hall":hall,"time":time,"title":title,"price":price,"source":"schedule_ocr"})
-    return dedupe(events)
 
 def parse_event_guide(event_guide):
     r=get(event_guide); soup=BeautifulSoup(r.text,"html.parser"); events=[]
@@ -452,12 +423,8 @@ def main():
                          ("（予定表PDF更新のため要再確認）" if changed else ""))
             if not changed: source_success=True; forum_success=True
         if target_yms:
-            parsed=[e for e in parse_schedule_ocr(ocr_pdf(pdf),year,months) if ym(e) in target_yms]
-            old_target=sum(1 for e in old if ym(e) in target_yms and e.get("hall") in HALLS)
-            threshold=max(8,int(old_target*0.60)) if old_target else 8
-            if len(parsed)>=threshold: schedule=parsed; schedule_trusted=True; source_success=True; forum_success=True; notes.append(f"催事予定表OCR 信頼済み {len(parsed)}件 / しきい値{threshold}")
-            else: notes.append(f"催事予定表OCR 信頼度不足 {len(parsed)}件 / しきい値{threshold} のため既存月データ維持")
-    except Exception as e: notes.append(f"催事予定表OCR失敗: {clean(e,180)}")
+            notes.append("催事予定表OCRは無効です。未照合月は既存データを維持: "+", ".join(sorted(target_yms)))
+    except Exception as e: notes.append(f"催事予定表確認失敗: {clean(e,180)}")
     try: city_park,checked=parse_city_park_events(); city_park_authoritative=checked>0; park.extend(city_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（市公式） {len(city_park)}件 / カレンダー{checked}ページ確認")
     except Exception as e: notes.append(f"文化の丘公園（市公式）取得失敗: {clean(e,180)}")
     try: tourism_park,checked=parse_tourism_park_events(); park.extend(tourism_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（観光協会） {len(tourism_park)}件 / {checked}ページ確認")
@@ -484,4 +451,5 @@ def main():
     last_success=run_at if source_success else old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_forum=run_at if forum_success else old_meta.get("last_successful_forum_at") or old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_park=run_at if park_success else old_meta.get("last_successful_park_at") or ""; status="ok" if forum_success else ("partial" if source_success else "fallback")
     EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
 
-if __name__=="__main__": main()
+if __name__=="__main__":
+    raise SystemExit("update_events.py の直接実行は無効です。update_events_no_ocr.py を使用してください。")
