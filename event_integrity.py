@@ -55,11 +55,36 @@ def venue_names(e: dict) -> set[str]:
     return {place.strip()} if isinstance(place, str) and place.strip() else set()
 
 
+def same_source_record(a: dict, b: dict) -> bool:
+    """Recognize an exact record re-read from the same source.
+
+    This is deliberately stricter than event identity: date, normalized title,
+    venue set, time, source label and source URL must all match. It prevents a
+    time-unknown notice from being appended on every automatic update without
+    merging distinct showtimes.
+    """
+    if a.get("date") != b.get("date") or normalize_title(a.get("title")) != normalize_title(b.get("title")):
+        return False
+    if venue_names(a) != venue_names(b) or not venue_names(a):
+        return False
+    if str(a.get("time") or "").strip() != str(b.get("time") or "").strip():
+        return False
+    source_a = str(a.get("source") or a.get("source_type") or "").strip()
+    source_b = str(b.get("source") or b.get("source_type") or "").strip()
+    if not source_a or source_a != source_b:
+        return False
+    url_a = str(a.get("source_url") or a.get("official_url") or "").strip()
+    url_b = str(b.get("source_url") or b.get("official_url") or "").strip()
+    return bool(url_a and url_a == url_b)
+
+
 def same_performance(a: dict, b: dict) -> bool:
     if a.get("date") != b.get("date") or normalize_title(a.get("title")) != normalize_title(b.get("title")):
         return False
     if not (venue_names(a) & venue_names(b)):
         return False
+    if same_source_record(a, b):
+        return True
     id_a, id_b = a.get("performance_id"), b.get("performance_id")
     if id_a and id_b:
         return id_a == id_b  # Reviewed stable IDs can identify corrected times.
