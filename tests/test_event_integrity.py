@@ -28,6 +28,32 @@ class IdentityAndEvidenceTests(unittest.TestCase):
         self.assertTrue(same_performance(event("", performance_id="verified-show"),
                                          event("", performance_id="verified-show")))
 
+
+    def test_exact_same_source_record_can_identify_unknown_time(self):
+        a = event(
+            "", source="event_guide",
+            official_url="https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        )
+        b = event(
+            "", source="event_guide",
+            source_type="city_schedule",
+            source_url="https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        )
+        self.assertTrue(same_performance(a, b))
+
+        self.assertFalse(same_performance(
+            a,
+            event("", source="event_guide", official_url="https://example.org/event"),
+        ))
+        self.assertFalse(same_performance(
+            a,
+            event("", source="other", official_url=a["official_url"]),
+        ))
+        self.assertFalse(same_performance(
+            event("13:00〜", source="event_guide", official_url=a["official_url"]),
+            event("17:00〜", source="event_guide", official_url=a["official_url"]),
+        ))
+
     def test_reviewed_performance_identity_supports_correction(self):
         self.assertTrue(same_performance(event("10:00〜", performance_id="show-a"),
                                          event("10:30〜", performance_id="show-a")))
