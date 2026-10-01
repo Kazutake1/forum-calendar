@@ -1,4 +1,8 @@
+import json
+from pathlib import Path
 import unittest
+
+from update_events import dedupe
 
 from event_integrity import (
     city_verified, combine_performance, same_performance, time_parts, source_rank,
@@ -90,6 +94,19 @@ class IdentityAndEvidenceTests(unittest.TestCase):
         item.update(source_verified=True, verified_fields=["title", "date"])
         self.assertFalse(city_verified(item, "time"))
         self.assertTrue(city_verified(item, "title"))
+
+    def test_shared_merge_contract_fixture(self):
+        fixture_path = Path(__file__).with_name("event_merge_contract.json")
+        cases = json.loads(fixture_path.read_text(encoding="utf-8"))
+        for case in cases:
+            with self.subTest(case=case["name"]):
+                merged = dedupe(case["base"] + case["manual"])
+                self.assertEqual(len(merged), case["expected"]["count"])
+                self.assertEqual([event.get("time", "") for event in merged], case["expected"]["times"])
+                if "price" in case["expected"]:
+                    self.assertEqual(merged[0].get("price"), case["expected"]["price"])
+
+
 
 
 if __name__ == "__main__":

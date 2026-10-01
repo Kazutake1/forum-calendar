@@ -1,0 +1,144 @@
+[
+  {
+    "name": "opening-time-enrichment",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "演奏会",
+        "hall": "中ホール",
+        "time": "開演18:00",
+        "price": "500円"
+      }
+    ],
+    "manual": [
+      {
+        "id": "contract-opening",
+        "date": "2026-10-31",
+        "title": "演奏会",
+        "hall": "中ホール",
+        "time": "開場17:30／開演18:00",
+        "source_type": "city_schedule",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000004875.html",
+        "source_verified": true,
+        "verified_fields": [
+          "time"
+        ]
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開場17:30／開演18:00"
+      ]
+    }
+  },
+  {
+    "name": "distinct-start-times",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "同日同名公演",
+        "hall": "中ホール",
+        "time": "開演10:00",
+        "price": ""
+      }
+    ],
+    "manual": [
+      {
+        "id": "contract-distinct",
+        "date": "2026-10-31",
+        "title": "同日同名公演",
+        "hall": "中ホール",
+        "time": "開演18:00",
+        "source_type": "x",
+        "source_url": "https://x.com/example/status/999",
+        "distinct_performance": true,
+        "performance_id": "show-2",
+        "distinct_performance_evidence_url": "https://x.com/example/status/999"
+      }
+    ],
+    "expected": {
+      "count": 2,
+      "times": [
+        "開演10:00",
+        "開演18:00"
+      ]
+    }
+  },
+  {
+    "name": "reviewed-performance-id-correction",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "ID公演",
+        "hall": "中ホール",
+        "time": "開演18:00",
+        "price": "",
+        "performance_id": "show-1"
+      }
+    ],
+    "manual": [
+      {
+        "id": "contract-id-correction",
+        "date": "2026-10-31",
+        "title": "ID公演",
+        "hall": "中ホール",
+        "time": "開演18:30",
+        "source_type": "city_official",
+        "source_url": "https://www.city.inazawa.aichi.jp/0000123456.html",
+        "source_verified": true,
+        "verified_fields": [
+          "time"
+        ],
+        "performance_id": "show-1"
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開演18:30"
+      ]
+    }
+  },
+  {
+    "name": "city-price-over-x",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "料金公演",
+        "hall": "中ホール",
+        "time": "開演18:00",
+        "price": "X価格",
+        "source_type": "x",
+        "source_url": "https://x.com/example/status/1",
+        "source_verified": true,
+        "verified_fields": [
+          "price"
+        ]
+      }
+    ],
+    "manual": [
+      {
+        "id": "contract-city-price",
+        "date": "2026-10-31",
+        "title": "料金公演",
+        "hall": "中ホール",
+        "time": "開演18:00",
+        "price": "市価格",
+        "source_type": "city_schedule",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000004875.html",
+        "source_verified": true,
+        "verified_fields": [
+          "price"
+        ]
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開演18:00"
+      ],
+      "price": "市価格"
+    }
+  }
+]

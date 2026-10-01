@@ -99,6 +99,17 @@ result=merge([base('開演18:00',{source_type:'city_schedule',source_url:'https:
 assert.equal(result.length,1);
 assert.equal(result[0].time,'開場17:30／開演18:00');
 
+// Shared contract fixtures are also executed by Python's dedupe implementation.
+const contractCases = JSON.parse(fs.readFileSync('tests/event_merge_contract.json','utf8'));
+for (const testCase of contractCases) {
+  const contractResult = merge(testCase.base, testCase.manual);
+  assert.equal(contractResult.length, testCase.expected.count, testCase.name);
+  assert.deepEqual(contractResult.map(e => e.time || ''), testCase.expected.times, testCase.name);
+  if (Object.hasOwn(testCase.expected, 'price')) {
+    assert.equal(contractResult[0].price, testCase.expected.price, testCase.name);
+  }
+}
+
 // Production regression: validate every currently published manual record against
 // the actual automatic dataset, not only synthetic events. Never write data files.
 const publishedAuto = JSON.parse(fs.readFileSync('events.json', 'utf8'));
