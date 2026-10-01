@@ -7,24 +7,39 @@ const root = path.resolve(__dirname, '..');
 async function main() {
   const json = fs.readFileSync(path.join(root,'verified_schedule.json'),'utf8');
   const handlers = {};
+  let mode='offline';
   const context = {
     URL, Response, console,
     self:{location:{origin:'https://calendar.example'},
       addEventListener:(name,callback)=>handlers[name]=callback},
     caches:{match:async key=>key==='./verified_schedule.json'
       ? new Response(json,{status:200,headers:{'Content-Type':'application/json'}}) : null},
-    fetch:async ()=>{throw new Error('network offline');}
+    fetch:async ()=>{
+      if(mode==='offline')throw new Error('network offline');
+      const bad={...JSON.parse(json),source_pdf_sha256:'wrong'};
+      return new Response(JSON.stringify(bad),{status:200,headers:{'Content-Type':'application/json'}});
+    }
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(root,'sw.js'),'utf8'),context);
-  let answer;
-  handlers.fetch({request:{method:'GET',url:'https://calendar.example/verified_schedule.json?ts=1'},
-    respondWith:promise=>answer=promise});
-  const response=await answer;
+  const dispatch=async suffix=>{
+    let answer;
+    handlers.fetch({request:{method:'GET',url:'https://calendar.example/verified_schedule.json?ts='+suffix},
+      respondWith:promise=>answer=promise});
+    return answer;
+  };
+  let response=await dispatch('offline');
   assert.equal(response.status,200);
   assert.equal(response.headers.get('X-Forum-Verified-Cache'),'stale');
-  const data=await response.json();
+  let data=await response.json();
   assert.equal(data.events.length,58);
-  console.log('PASS: offline verified schedule recovers 58 pinned rows with stale notice');
+
+  mode='invalid';
+  response=await dispatch('invalid');
+  assert.equal(response.headers.get('X-Forum-Verified-Cache'),'stale');
+  data=await response.json();
+  assert.equal(data.source_pdf_sha256,JSON.parse(json).source_pdf_sha256);
+  assert.equal(data.events.length,58);
+  console.log('PASS: offline/invalid verified schedule recovers 58 pinned rows without poisoning cache');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

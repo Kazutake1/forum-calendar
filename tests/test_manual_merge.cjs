@@ -193,6 +193,11 @@ async function testManualServiceWorker() {
   assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
   assert.equal((await result.json()).length, publishedManual.length);
 
+  result = await run(async () => new Response('[{}]', { status: 200 }), cached,
+    async () => { throw Error('invalid manual payload must not be cached'); });
+  assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
+  assert.equal((await result.json()).length, publishedManual.length);
+
   let key = '';
   result = await run(async () => new Response(JSON.stringify(publishedManual), { status: 200 }), null,
     async (path, value) => { key = path; assert.equal((await value.json()).length, publishedManual.length); });
