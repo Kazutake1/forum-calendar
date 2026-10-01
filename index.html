@@ -128,6 +128,7 @@ const DIRECT_LINKS=[
 ];
 function linkInfo(e){
   if(e.source_type==='city_schedule'&&e.source_url)return {url:e.source_url,label:'催事予定表'};
+  if(e.source_type==='city_event_guide'&&e.source_url)return {url:e.source_url,label:'会館公式イベント案内'};
   if(e.official_url)return {url:e.official_url,label:'イベント公式ページ'};
   const x=DIRECT_LINKS.find(x=>x.test(e.title));
   if(x)return x;
