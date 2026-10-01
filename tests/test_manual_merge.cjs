@@ -2,8 +2,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
+const policy = JSON.parse(fs.readFileSync('event-policy.json','utf8'));
 const context = vm.createContext({
-  window: {}, URL,
+  window: {FORUM_EVENT_POLICY: policy}, URL,
   linkInfo: () => ({ url: '#', label: 'test' }),
   console,
 });
@@ -117,7 +118,7 @@ async function testManualRecovery() {
   const makePage = (fetcher, cached) => {
     const status = { textContent: '自動更新済み', classList: { add() {} } };
     let refreshed = 0;
-    const page = { window: { caches: { match: async () => cached } }, URL, console,
+    const page = { window: { FORUM_EVENT_POLICY: policy, caches: { match: async () => cached } }, URL, console,
       EVENTS: publishedAuto.slice(), refresh: () => { refreshed++; },
       linkInfo: () => ({ url: '#', label: 'test' }),
       document: { querySelector: () => status }, fetch: fetcher };
