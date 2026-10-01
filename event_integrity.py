@@ -6,13 +6,40 @@ Corrections to conflicting performances require reviewed IDs/evidence.
 """
 from __future__ import annotations
 
+import json
 import re
 import unicodedata
+from pathlib import Path
 from urllib.parse import urlparse
 
-CITY_HOST = "www.city.inazawa.aichi.jp"
-CITY_SOURCES = {"event_guide", "city_event_guide", "city_event_calendar", "schedule_ocr"}
-FIELDS = ("date", "title", "hall", "time", "price", "official_url")
+POLICY_PATH = Path(__file__).with_name("event-policy.json")
+
+
+def _load_policy() -> dict:
+    try:
+        policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("イベント出典ポリシーを読み込めません") from exc
+    if policy.get("schema_version") != 1:
+        raise RuntimeError("イベント出典ポリシーのschema_versionが不正です")
+    if not isinstance(policy.get("city_host"), str) or not policy["city_host"]:
+        raise RuntimeError("イベント出典ポリシーのcity_hostが不正です")
+    for key in ("x_hosts", "merge_fields", "manual_source_types", "source_groups"):
+        if not isinstance(policy.get(key), list) or not policy[key]:
+            raise RuntimeError(f"イベント出典ポリシーの{key}が不正です")
+    for group in policy["source_groups"]:
+        if (not isinstance(group, dict) or not isinstance(group.get("rank"), int)
+                or not isinstance(group.get("source_types"), list) or not group["source_types"]):
+            raise RuntimeError("イベント出典ポリシーのsource_groupsが不正です")
+    return policy
+
+
+EVENT_POLICY = _load_policy()
+CITY_HOST = EVENT_POLICY["city_host"]
+X_HOSTS = frozenset(EVENT_POLICY["x_hosts"])
+FIELDS = tuple(EVENT_POLICY["merge_fields"])
+MANUAL_SOURCE_TYPES = frozenset(EVENT_POLICY["manual_source_types"])
+SOURCE_GROUPS = tuple(EVENT_POLICY["source_groups"])
 
 
 def normalize_title(value: object) -> str:
@@ -115,21 +142,30 @@ def field_provenance(e: dict, field: str) -> dict:
     return {"source_type": kind, "source_url": url, "verified": verified, "event_specific": specific}
 
 def source_rank(e: dict, field: str) -> int:
-    """Verified field: event-specific official 3 > city official/schedule 2 > X 1."""
+    """Return the verified source rank defined in event-policy.json."""
     info = field_provenance(e, field)
-    if info.get("verified") is not True: return 0
+    if info.get("verified") is not True:
+        return 0
     try:
         parsed = urlparse(info.get("source_url") or "")
-        if parsed.scheme != "https" or not parsed.hostname: return 0
-    except (TypeError, ValueError): return 0
+        if parsed.scheme != "https" or not parsed.hostname:
+            return 0
+    except (TypeError, ValueError):
+        return 0
     kind = str(info.get("source_type") or "")
-    if (kind in {"event_official", "promoter", "organizer"} and info.get("event_specific") is True
-            and parsed.hostname not in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}):
-        return 3
-    if parsed.hostname == CITY_HOST and kind in {"city_schedule", "city_official", *CITY_SOURCES}:
-        return 2
-    if kind == "x" and parsed.hostname in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}:
-        return 1
+    host = parsed.hostname
+    for group in SOURCE_GROUPS:
+        if kind not in group["source_types"]:
+            continue
+        if group.get("require_event_specific") is True and info.get("event_specific") is not True:
+            continue
+        hosts = group.get("hosts")
+        if isinstance(hosts, list) and hosts and host not in hosts:
+            continue
+        forbidden = group.get("forbidden_hosts")
+        if isinstance(forbidden, list) and host in forbidden:
+            continue
+        return int(group["rank"])
     return 0
 
 def city_verified(e: dict, field: str) -> bool:
