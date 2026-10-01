@@ -38,13 +38,13 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Run archive and duplicate review tests
-        run: python -m unittest discover -s tests -v
-
       - name: Refresh main without overwriting concurrent edits
         run: |
           git fetch origin main
           git checkout -B main origin/main
+
+      - name: Run archive and duplicate review tests
+        run: python -m unittest discover -s tests -v
 
       - name: Archive expired records and write review report
         run: |
