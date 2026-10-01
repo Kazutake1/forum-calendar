@@ -45,7 +45,7 @@ class EventPolicyContractTests(unittest.TestCase):
 
         for source_type in (
             "city_schedule", "city_official", "city_event_guide",
-            "event_guide", "city_event_calendar", "schedule_ocr",
+            "event_guide", "city_event_calendar",
         ):
             with self.subTest(source_type=source_type):
                 self.assertEqual(source_rank(self.event(source_type, city_url), "time"), 2)

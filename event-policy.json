@@ -49,8 +49,7 @@
         "city_official",
         "city_event_guide",
         "event_guide",
-        "city_event_calendar",
-        "schedule_ocr"
+        "city_event_calendar"
       ],
       "hosts": [
         "www.city.inazawa.aichi.jp"
