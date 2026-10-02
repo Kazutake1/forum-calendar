@@ -647,7 +647,7 @@
       "hall": {
         "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
-        "verified": false,
+        "verified": true,
         "event_specific": true
       },
       "time": {
@@ -691,7 +691,7 @@
       "hall": {
         "source_type": "city_event_calendar",
         "source_url": "https://www.city.inazawa.aichi.jp/0000000913.html",
-        "verified": false,
+        "verified": true,
         "event_specific": true
       },
       "time": {
