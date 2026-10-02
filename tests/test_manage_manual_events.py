@@ -91,6 +91,33 @@ class HousekeepingTests(unittest.TestCase):
         self.assertFalse((self.root / "reports").exists())
         self.assertEqual(self.read("manual_events.json"), records)
 
+    def test_manual_city_source_contract_is_enforced(self):
+        city_url = "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+        valid = event(
+            "city-guide", "2026-10-31", source_type="city_event_guide",
+            source_url=city_url, source_verified=True,
+        )
+        self.write("manual_events.json", [valid])
+        self.write("events.json", [])
+        result = manage(self.root, date(2026, 9, 20), dry_run=True)
+        self.assertEqual(result["active"], 1)
+
+        invalid_host = event(
+            "city-schedule", "2026-10-31", source_type="city_schedule",
+            source_url="https://example.org/not-city", source_verified=True,
+        )
+        self.write("manual_events.json", [invalid_host])
+        with self.assertRaisesRegex(ValueError, "市公式情報"):
+            manage(self.root, date(2026, 9, 20), dry_run=True)
+
+        unverified = event(
+            "city-calendar", "2026-10-31", source_type="city_event_calendar",
+            source_url=city_url, source_verified=False,
+        )
+        self.write("manual_events.json", [unverified])
+        with self.assertRaisesRegex(ValueError, "市公式情報"):
+            manage(self.root, date(2026, 9, 20), dry_run=True)
+
     def test_dry_run_never_changes_files(self):
         self.write("manual_events.json", [event("old", "2026-01-01")])
         self.write("events.json", [])

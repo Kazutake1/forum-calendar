@@ -116,7 +116,7 @@ async function main() {
   assert.ok(html.includes('let EVENTS=[];'), 'automatic events should start empty and come from events.json');
   assert.ok(html.includes('X-Forum-Events-Cache'), 'UI must detect saved automatic event data');
   assert.ok(swSource.includes("POLICY_DATA='./event-policy.json'"), 'shared event policy must be cached for offline use');
-  assert.ok(swSource.includes("const CACHE='forum-calendar-v9-3-7-r2'"), 'semantic validation changes must use a fresh cache generation');
+  assert.ok(swSource.includes("const CACHE='forum-calendar-v9-3-7-r3'"), 'semantic validation changes must use a fresh cache generation');
   const staticLine = swSource.split('\n').find(line => line.startsWith('const STATIC='));
   assert.ok(staticLine && !/AUTO_DATA|POLICY_DATA|MANUAL_DATA|VERIFIED_DATA/.test(staticLine),
     'semantic JSON data must not be blindly precached by cache.addAll');

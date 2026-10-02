@@ -2,9 +2,11 @@ import unittest
 
 from event_integrity import (
     CITY_HOST,
+    CITY_SOURCE_TYPES,
     EVENT_POLICY,
     FIELDS,
     MANUAL_SOURCE_TYPES,
+    manual_source_valid,
     source_rank,
 )
 
@@ -33,8 +35,17 @@ class EventPolicyContractTests(unittest.TestCase):
         self.assertEqual(
             MANUAL_SOURCE_TYPES,
             frozenset({
-                "x", "city_official", "city_schedule", "event_official",
-                "organizer", "promoter", "other",
+                "x", "city_official", "city_schedule", "city_event_guide",
+                "city_event_calendar", "event_official", "organizer",
+                "promoter", "other",
+            }),
+        )
+
+        self.assertEqual(
+            CITY_SOURCE_TYPES,
+            frozenset({
+                "city_schedule", "city_official", "city_event_guide",
+                "event_guide", "city_event_calendar",
             }),
         )
 
@@ -72,6 +83,35 @@ class EventPolicyContractTests(unittest.TestCase):
             source_rank(self.event("city_schedule", city_url, verified=False), "time"),
             0,
         )
+
+    def test_manual_city_sources_require_verified_city_host(self):
+        city_url = "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+        external_url = "https://example.org/city-looking-page"
+        manual_city_types = (
+            "city_official", "city_schedule", "city_event_guide", "city_event_calendar",
+        )
+        for source_type in manual_city_types:
+            with self.subTest(source_type=source_type):
+                self.assertTrue(manual_source_valid({
+                    "source_type": source_type,
+                    "source_url": city_url,
+                    "source_verified": True,
+                }))
+                self.assertFalse(manual_source_valid({
+                    "source_type": source_type,
+                    "source_url": external_url,
+                    "source_verified": True,
+                }))
+                self.assertFalse(manual_source_valid({
+                    "source_type": source_type,
+                    "source_url": city_url,
+                    "source_verified": False,
+                }))
+        self.assertFalse(manual_source_valid({
+            "source_type": "event_guide",
+            "source_url": city_url,
+            "source_verified": True,
+        }))
 
     def test_source_types_are_not_duplicated_across_rank_groups(self):
         seen = set()

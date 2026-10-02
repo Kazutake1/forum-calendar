@@ -26,7 +26,7 @@
 
 URLが存在するだけでは「確認済み」と扱いません。情報が食い違う場合は、安全に統合できる根拠がなければ自動上書きしません。
 
-稲沢市の出典は、`city_schedule`（催事予定表）と `city_event_guide`（会館公式イベント案内）を区別しています。
+稲沢市の出典は、`city_schedule`（催事予定表）、`city_event_guide`（会館公式イベント案内）、`city_event_calendar`（市イベントカレンダー）、`city_official`（その他の市公式個別情報）を区別しています。手動登録でこれらを使用する場合は、稲沢市公式ドメインのHTTPS URLと `source_verified=true` の両方が必須です。旧 `event_guide` は既存自動データ互換用で、手動登録には使用しません。
 
 ## 自動更新
 

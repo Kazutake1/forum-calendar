@@ -10,6 +10,9 @@
   const X_HOSTS=new Set(POLICY.x_hosts);
   const MERGE_FIELDS=[...POLICY.merge_fields];
   const MANUAL_SOURCE_TYPES=new Set(POLICY.manual_source_types);
+  const CITY_SOURCE_TYPES=new Set(
+    (POLICY.source_groups.find(group=>group&&group.name==='city_official')||{}).source_types||[]);
+  if(!CITY_SOURCE_TYPES.size)throw new Error('市公式出典ポリシーがありません');
   const SOURCE_GROUPS=POLICY.source_groups.map(group=>({...group,
     source_types:new Set(group.source_types||[]),
     hosts:Array.isArray(group.hosts)?new Set(group.hosts):null,
@@ -29,7 +32,7 @@
   };
   const verifiedCity = event => {
     const url=sourceUrl(event);
-    return event.source_type==='city_official' && event.source_verified===true &&
+    return CITY_SOURCE_TYPES.has(event.source_type) && event.source_verified===true &&
       Boolean(url) && new URL(url).hostname===CITY_HOST;
   };
   const fieldEvidence = (e,field) => {
@@ -111,7 +114,7 @@
         if(raw.match||typeof raw.performance_id!=='string'||!raw.performance_id.trim()||!good)
           throw new Error('別公演には固有IDと根拠URLが必要です');
       }
-    if (raw.source_type === 'city_official' && !verifiedCity(raw)) {
+    if (CITY_SOURCE_TYPES.has(raw.source_type) && !verifiedCity(raw)) {
       throw new Error('市公式情報の出典が確認できません');
     }
     return { ...raw, venues: venues(raw),
@@ -162,7 +165,7 @@
   window.mergeForumEvents = merge;
   const previousLinkInfo = linkInfo;
   linkInfo = function(event) {
-    if (event._manualSourceUrl && event._manualSourceType !== 'city_official') {
+    if (event._manualSourceUrl && !CITY_SOURCE_TYPES.has(event._manualSourceType)) {
       return { url: event._manualSourceUrl,
         label: event._manualSourceType === 'x' ? '出典のX投稿' : 'イベントの出典' };
     }

@@ -13,7 +13,10 @@ import json
 from pathlib import Path
 import re
 import unicodedata
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
+
+from event_integrity import CITY_HOST, CITY_SOURCE_TYPES, MANUAL_SOURCE_TYPES, X_HOSTS
 
 DAYS_TO_KEEP = 90
 ARCHIVE_PATTERN = "manual_events_*.json"
@@ -46,6 +49,20 @@ def validate_manual(records: list[dict], source: Path, seen: set[str]) -> None:
         for field in ("title", "hall"):
             if not isinstance(record.get(field), str) or not record[field].strip():
                 raise ValueError(f"手動イベントの{field}が不正です: {identifier}")
+        source_type = record.get("source_type")
+        if source_type not in MANUAL_SOURCE_TYPES:
+            raise ValueError(f"手動イベントのsource_typeが不正です: {identifier}")
+        try:
+            source_url = urlparse(str(record.get("source_url") or ""))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"手動イベントのsource_urlが不正です: {identifier}") from exc
+        if source_url.scheme != "https" or not source_url.hostname:
+            raise ValueError(f"手動イベントのsource_urlが不正です: {identifier}")
+        if source_type == "x" and source_url.hostname not in X_HOSTS:
+            raise ValueError(f"X投稿の出典URLが不正です: {identifier}")
+        if source_type in CITY_SOURCE_TYPES and (
+                record.get("source_verified") is not True or source_url.hostname != CITY_HOST):
+            raise ValueError(f"市公式情報の出典が確認できません: {identifier}")
 
 
 def venue_set(event: dict) -> set[str]:

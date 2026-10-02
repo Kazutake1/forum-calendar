@@ -1,4 +1,4 @@
-const CACHE='forum-calendar-v9-3-7-r2';
+const CACHE='forum-calendar-v9-3-7-r3';
 const AUTO_DATA='./events.json';
 const POLICY_DATA='./event-policy.json';
 const MANUAL_DATA='./manual_events.json';
@@ -63,11 +63,13 @@ const validPolicyData=data=>{
      !Array.isArray(official.forbidden_hosts)||!data.x_hosts.every(host=>official.forbidden_hosts.includes(host))||
      !['event_official','organizer','promoter'].every(type=>official.source_types.includes(type)))return false;
   if(!city||city.rank!==2||!Array.isArray(city.hosts)||!city.hosts.includes(data.city_host)||
-     !['city_official','city_schedule'].every(type=>city.source_types.includes(type)))return false;
+     !['city_official','city_schedule','city_event_guide','event_guide','city_event_calendar']
+       .every(type=>city.source_types.includes(type)))return false;
   if(!x||x.rank!==1||!Array.isArray(x.hosts)||!data.x_hosts.every(host=>x.hosts.includes(host))||
      !x.source_types.includes('x'))return false;
 
-  const requiredManual=['x','city_official','city_schedule','event_official','organizer','promoter','other'];
+  const requiredManual=['x','city_official','city_schedule','city_event_guide','city_event_calendar',
+    'event_official','organizer','promoter','other'];
   if(!requiredManual.every(type=>data.manual_source_types.includes(type)))return false;
   return data.manual_source_types.every(type=>type==='other'||sourceTypes.has(type));
 };
@@ -75,6 +77,8 @@ const validManualData=(data,policy)=>{
   if(!validPolicyData(policy)||!Array.isArray(data))return false;
   const ids=new Set(),allowedTypes=new Set(policy.manual_source_types),xHosts=new Set(policy.x_hosts);
   const mergeFields=new Set(policy.merge_fields);
+  const cityGroup=policy.source_groups.find(group=>group.name==='city_official');
+  const cityTypes=new Set(cityGroup.source_types);
   return data.every(event=>{
     if(!event||typeof event!=='object'||Array.isArray(event)||typeof event.id!=='string'||!event.id.trim()||
        ids.has(event.id)||!validDate(event.date)||typeof event.title!=='string'||event.title.trim().length<2||
@@ -87,7 +91,7 @@ const validManualData=(data,policy)=>{
          event.verified_fields.some(field=>!mergeFields.has(field)))))return false;
     const sourceHost=new URL(event.source_url).hostname;
     if(event.source_type==='x'&&!xHosts.has(sourceHost))return false;
-    if(event.source_type==='city_official'&&
+    if(cityTypes.has(event.source_type)&&
        (event.source_verified!==true||sourceHost!==policy.city_host))return false;
     if(event.match){
       if(typeof event.match!=='object'||Array.isArray(event.match)||!validDate(event.match.date)||

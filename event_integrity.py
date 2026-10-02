@@ -41,6 +41,14 @@ FIELDS = tuple(EVENT_POLICY["merge_fields"])
 MANUAL_SOURCE_TYPES = frozenset(EVENT_POLICY["manual_source_types"])
 SOURCE_GROUPS = tuple(EVENT_POLICY["source_groups"])
 
+def _group_source_types(name: str) -> frozenset[str]:
+    for group in SOURCE_GROUPS:
+        if group.get("name") == name:
+            return frozenset(group["source_types"])
+    raise RuntimeError(f"イベント出典ポリシーに{name}グループがありません")
+
+CITY_SOURCE_TYPES = _group_source_types("city_official")
+
 
 def normalize_title(value: object) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).lower()
@@ -140,6 +148,24 @@ def field_provenance(e: dict, field: str) -> dict:
     if isinstance(allowed, list) and field not in allowed: verified = False
     specific = e.get(f"{field}_event_specific", e.get("event_specific", False)) is True
     return {"source_type": kind, "source_url": url, "verified": verified, "event_specific": specific}
+
+def manual_source_valid(e: dict) -> bool:
+    """Validate the top-level source contract for a manual event."""
+    kind = str(e.get("source_type") or "")
+    if kind not in MANUAL_SOURCE_TYPES:
+        return False
+    try:
+        parsed = urlparse(str(e.get("source_url") or ""))
+    except (TypeError, ValueError):
+        return False
+    if parsed.scheme != "https" or not parsed.hostname:
+        return False
+    if kind == "x":
+        return parsed.hostname in X_HOSTS
+    if kind in CITY_SOURCE_TYPES:
+        return e.get("source_verified") is True and parsed.hostname == CITY_HOST
+    return True
+
 
 def source_rank(e: dict, field: str) -> int:
     """Return the verified source rank defined in event-policy.json."""

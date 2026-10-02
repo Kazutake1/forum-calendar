@@ -80,6 +80,27 @@ assert.equal(result[0].field_sources.time.source_type,'event_official');
 result=merge([base('開演18:00',{price:'500円'})], [manual('x-price','開演18:00',{price:'2000円',source_verified:true,verified_fields:['price']})]);
 assert.equal(result[0].price,'500円');
 
+// All manual city source types require verified Inazawa-city evidence.
+const cityManualTypes=['city_official','city_schedule','city_event_guide','city_event_calendar'];
+for(const sourceType of cityManualTypes){
+  const cityUrl='https://www.city.inazawa.aichi.jp/ica/0000002507.html';
+  result=merge([], [manual('valid-'+sourceType,'開演18:00',{
+    source_type:sourceType,source_url:cityUrl,source_verified:true,
+  })]);
+  assert.equal(result.length,1,sourceType+' should accept verified city evidence');
+  assert.equal(result[0].official_url,cityUrl);
+  assert.throws(()=>merge([], [manual('wrong-host-'+sourceType,'開演18:00',{
+    source_type:sourceType,source_url:'https://example.org/not-city',source_verified:true,
+  })]), /市公式情報/);
+  assert.throws(()=>merge([], [manual('unverified-'+sourceType,'開演18:00',{
+    source_type:sourceType,source_url:cityUrl,source_verified:false,
+  })]), /市公式情報/);
+}
+assert.throws(()=>merge([], [manual('legacy-event-guide','開演18:00',{
+  source_type:'event_guide',source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',
+  source_verified:true,
+})]), /形式/);
+
 // City event guide and the verified city schedule are distinct source types but the same rank.
 assert.throws(() => merge([
   base('開演18:00',{price:'市公式イベント案内価格',source_type:'city_event_guide',
@@ -224,6 +245,20 @@ async function testManualServiceWorker() {
     source_url: 'https://example.org/not-x'}];
   result = await run(async () => new Response(JSON.stringify(invalidX), { status: 200 }), cached,
     async () => { throw Error('invalid X host must not be cached'); });
+  assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
+  assert.equal((await result.json()).length, publishedManual.length);
+
+  const invalidCityHost = [{...publishedManual[0], id: 'invalid-city-host', source_type: 'city_schedule',
+    source_url: 'https://example.org/not-city', source_verified: true}];
+  result = await run(async () => new Response(JSON.stringify(invalidCityHost), { status: 200 }), cached,
+    async () => { throw Error('invalid city host must not be cached'); });
+  assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
+  assert.equal((await result.json()).length, publishedManual.length);
+
+  const unverifiedCity = [{...publishedManual[0], id: 'unverified-city-guide', source_type: 'city_event_guide',
+    source_url: 'https://www.city.inazawa.aichi.jp/ica/0000002507.html', source_verified: false}];
+  result = await run(async () => new Response(JSON.stringify(unverifiedCity), { status: 200 }), cached,
+    async () => { throw Error('unverified city source must not be cached'); });
   assert.equal(result.headers.get('X-Forum-Manual-Cache'), 'stale');
   assert.equal((await result.json()).length, publishedManual.length);
 

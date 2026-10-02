@@ -10,6 +10,7 @@
 - no-OCR方針に合わせ、未使用だった旧 `schedule_ocr` source_type を `event-policy.json` と契約テストから削除。公開データに同source_typeが存在しないことを確認済み。
 - Service Workerのポリシー検証をランク構造・必須source_type・ホスト制約まで強化し、手動イベントも `manual_source_types`・Xホスト・市公式確認条件を満たす場合だけ保存するよう変更。未知のsource_typeや壊れたランク構造では正常キャッシュを上書きしない。キャッシュ世代を `r2` へ更新。
 - `update_events.py` に残っていた旧JR東海パンフレットPDF解析（`pdftotext`）を削除し、`jr_walking_web.py` の公式Web/API実装へ一本化。wrapperの関数差し替えも廃止し、JR通信は専用の許可ホスト検証だけを通る構造へ整理。
+- 市公式系source_typeを整理し、手動登録では `city_official` / `city_schedule` / `city_event_guide` / `city_event_calendar` を正式許可。4種類すべてに稲沢市公式HTTPS URL＋`source_verified=true`を必須化し、ブラウザ統合・Service Worker・月次整理Pythonで同じ契約を検証。旧 `event_guide` は自動データ互換用としてのみ維持。Service Workerキャッシュ世代を `r3` へ更新。
 
 ## Ver.9.3.7 — 構造・運用基盤の整理（2026-10-02）
 - 月次手動イベント管理Workflowの依存パッケージ不足を修正し、全Pythonテストを正常実行できるようにした。

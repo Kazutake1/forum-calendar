@@ -19,6 +19,8 @@
     "x",
     "city_official",
     "city_schedule",
+    "city_event_guide",
+    "city_event_calendar",
     "event_official",
     "organizer",
     "promoter",
