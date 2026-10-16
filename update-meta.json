@@ -1,10 +1,10 @@
 {
   "status": "ok",
-  "updated_at": "2026-10-15T00:32:30+00:00",
-  "updated_at_jst": "2026/10/15 09:32",
-  "last_successful_source_at": "2026-10-15T00:32:30+00:00",
-  "last_successful_forum_at": "2026-10-15T00:32:30+00:00",
-  "last_successful_park_at": "2026-10-15T00:32:30+00:00",
+  "updated_at": "2026-10-16T00:25:23+00:00",
+  "updated_at_jst": "2026/10/16 09:25",
+  "last_successful_source_at": "2026-10-16T00:25:23+00:00",
+  "last_successful_forum_at": "2026-10-16T00:25:23+00:00",
+  "last_successful_park_at": "2026-10-16T00:25:23+00:00",
   "event_count": 79,
   "schedule_replaced": false,
   "notes": [
