@@ -13,8 +13,8 @@ on:
       - '.github/workflows/monthly-manual-events.yml'
 
 permissions:
-  contents: write
-  pages: write
+  contents: read
+  actions: read
 
 concurrency:
   group: forum-calendar-main-write
@@ -22,13 +22,14 @@ concurrency:
 
 jobs:
   archive-and-review:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -40,8 +41,13 @@ jobs:
 
       - name: Refresh main without overwriting concurrent edits
         run: |
+          set -euo pipefail
           git fetch origin main
-          git checkout -B main origin/main
+          if [[ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ||
+                "$(git rev-parse origin/main)" != "$GITHUB_SHA" ]]; then
+            echo 'main advanced; refusing stale monthly update' >&2
+            exit 1
+          fi
 
       - name: Run archive and duplicate review tests
         run: python -m unittest discover -s tests -v
@@ -70,47 +76,124 @@ jobs:
           print(f"Validated {result['active']} active manual records and archives")
           PY
 
-      - name: Verify archived data before committing to main
+      - name: Verify archived records before proposing PR
         run: python -m unittest discover -s tests -v
 
-      - name: Commit only manual data, archives, and the report
-        id: persist
+      - name: Verify monthly data continuity without writing
+        run: python monthly_archive_guard.py
+
+      - name: Check exact monthly output files
+        id: changes
         shell: bash
         run: |
-          git config user.name "forum-calendar-bot"
-          git config user.email "actions@users.noreply.github.com"
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+          from monthly_archive_guard import permitted
+          rows = subprocess.check_output(
+              ["git", "status", "--porcelain", "--untracked-files=all"],
+              text=True).splitlines()
+          for line in rows:
+              if (len(line) < 4 or line[:2] not in (" M", "M ", "??")
+                      or not permitted(line[3:])):
+                  raise RuntimeError("Unexpected monthly worktree change; no PR")
+              path = Path(line[3:])
+              if path.is_symlink() or not path.is_file():
+                  raise RuntimeError("Monthly output is not a regular file")
+          PY
           git add -- manual_events.json reports/manual-event-review.md
-          shopt -s nullglob
-          archives=(archive/manual_events_*.json)
-          if ((${#archives[@]})); then
-            git add -- "${archives[@]}"
+          if compgen -G 'archive/manual_events_*.json' >/dev/null; then
+            git add -- archive/manual_events_*.json
           fi
           if git diff --cached --quiet; then
-            echo "No housekeeping changes"
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No monthly changes; no PR needed." >> "$GITHUB_STEP_SUMMARY"
           else
-            git commit -m "Archive expired manual events and refresh monthly review"
-            # A concurrent push is rejected rather than silently overwritten.
-            git push origin HEAD:main
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Explicitly request Pages rebuild after bot commit
-        if: steps.persist.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
+      - name: Issue short-lived repository-scoped GitHub App token
+        id: app-token
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FORUM_CALENDAR_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FORUM_CALENDAR_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open monthly archive PR for verified automatic publication
+        id: proposal
+        if: steps.changes.outputs.changed == 'true'
         shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          # A GITHUB_TOKEN push alone does NOT start a GitHub Pages build.
-          response=$(curl --silent --show-error --location --output /tmp/pages-build-response.json \
-            --write-out '%{http_code}' --request POST \
-            --header 'Accept: application/vnd.github+json' \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/${REPOSITORY}/pages/builds")
-          cat /tmp/pages-build-response.json
-          if [[ "$response" != "201" ]]; then
-            echo "Pages build request failed (HTTP $response). GitHub data may be newer than the published app." >&2
+          set -euo pipefail
+          if [[ "$REPOSITORY" != "Kazutake1/forum-calendar" ||
+                ! "$RUN_ID" =~ ^[0-9]+$ || ! "$RUN_ATTEMPT" =~ ^[0-9]+$ ]]; then
+            echo "Unexpected monthly execution context" >&2
             exit 1
           fi
-          echo "Pages build requested for updated manual data." >> "$GITHUB_STEP_SUMMARY"
+          pending=$(gh api --paginate "repos/$REPOSITORY/pulls?state=open&base=main&per_page=100" \
+            --jq '.[] | select(.head.ref | startswith("automation/monthly-manual/")) | .number')
+          if [[ -n "$pending" ]]; then
+            echo "An earlier monthly PR remains open; refusing competing update" >&2
+            exit 1
+          fi
+          current=$(gh api "repos/$REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$current" != "$BASE_SHA" ]]; then
+            echo "main changed during monthly preparation; no stale PR" >&2
+            exit 1
+          fi
+          branch="automation/monthly-manual/$RUN_ID-$RUN_ATTEMPT"
+          gh api "repos/$REPOSITORY/git/refs" -X POST \
+            -f ref="refs/heads/$branch" -f sha="$BASE_SHA" >/dev/null
+          count=$(git diff --cached --name-only | wc -l)
+          if ((count < 1 || count > 20)); then
+            echo "Unexpected monthly file count" >&2
+            exit 1
+          fi
+          while IFS= read -r path; do
+            old_sha=""
+            if git cat-file -e "HEAD:$path" 2>/dev/null; then
+              old_sha=$(git rev-parse --verify "HEAD:$path")
+              if [[ ! "$old_sha" =~ ^[a-f0-9]{40}$ ]]; then
+                echo "Invalid original blob SHA" >&2
+                exit 1
+              fi
+            elif [[ ! "$path" =~ ^archive/manual_events_[0-9]{4}\.json$ ]]; then
+              echo "Only new year archives may be added" >&2
+              exit 1
+            fi
+            python -c 'import base64,json,sys; from pathlib import Path; p,b,sha=sys.argv[1:]; obj={"branch":b,"content":base64.b64encode(Path(p).read_bytes()).decode("ascii"),"message":"Propose vetted monthly "+p}; obj.update({"sha":sha} if sha else {}); print(json.dumps(obj))' "$path" "$branch" "$old_sha" \
+              | gh api "repos/$REPOSITORY/contents/$path" -X PUT --input - >/dev/null
+          done < <(git diff --cached --name-only)
+          pr_number=$(gh api "repos/$REPOSITORY/pulls" -X POST \
+            -f head="$branch" -f base=main \
+            -f title="data: automatic monthly manual-event archive (CI required)" \
+            -f body="Monthly housekeeping. Exact 90-day event/archive continuity, source App and exact-head CI required before automatic merge." \
+            -F draft=false --jq '.number')
+          if [[ ! "$pr_number" =~ ^[0-9]+$ ]]; then
+            echo "Missing monthly PR number; refusing publication" >&2
+            exit 1
+          fi
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          printf 'Submitted monthly PR #%s; awaiting exact-head CI.\n' "$pr_number" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify monthly PR and CI before automatic publication
+        if: steps.changes.outputs.changed == 'true' && steps.proposal.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_CI_READ_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ steps.proposal.outputs.number }}
+          PR_BRANCH: ${{ steps.proposal.outputs.branch }}
+        run: python monthly_auto_merge.py

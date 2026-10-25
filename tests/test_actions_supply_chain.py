@@ -14,7 +14,7 @@ NODE = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
 JEKYLL_PREVIEW = "actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697"
 EXPECTED = {
     "app-smoke-test.yml": ["actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510"],
-    "monthly-manual-events.yml": [CHECKOUT, PYTHON],
+    "monthly-manual-events.yml": [CHECKOUT, PYTHON, "actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510"],
     "test-integrity.yml": [CHECKOUT, PYTHON, NODE, JEKYLL_PREVIEW],
     "update-events.yml": [CHECKOUT, PYTHON, "actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510"],
 }
@@ -43,14 +43,14 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         monthly = (ROOT / "monthly-manual-events.yml").read_text(encoding="utf-8")
         update = (ROOT / "update-events.yml").read_text(encoding="utf-8")
         verify = (ROOT / "test-integrity.yml").read_text(encoding="utf-8")
-        self.assertIn("permissions:\n  contents: write\n  pages: write", monthly)
+        self.assertIn("permissions:\n  contents: read\n  actions: read", monthly)
         self.assertIn("permissions:\n  contents: read\n  actions: read", update)
         self.assertNotIn("pages: write", update)
         self.assertIn("permissions:\n  contents: read\n", verify)
         self.assertNotIn("permissions: write-all", monthly + update + verify)
         self.assertNotIn("pages: write", verify)
         self.assertIn("persist-credentials: false", verify)
-        self.assertIn("persist-credentials: true", monthly)
+        self.assertIn("persist-credentials: false", monthly)
         self.assertIn("persist-credentials: false", update)
 
     def test_scheduled_commands_and_ocr_policy_are_preserved(self):
@@ -59,7 +59,9 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         verify = (ROOT / "test-integrity.yml").read_text(encoding="utf-8")
         self.assertIn("python manage_manual_events.py", monthly)
         self.assertIn("git add -- manual_events.json", monthly)
-        self.assertIn("git push origin HEAD:main", monthly)
+        self.assertIn("run: python monthly_auto_merge.py", monthly)
+        self.assertNotIn("git push origin HEAD:main", monthly)
+        self.assertNotIn("pages/builds", monthly)
         self.assertIn("https://api.github.com/repos/${REPOSITORY}/pages/builds", monthly)
         self.assertIn("python update_events_no_ocr.py", update)
         self.assertIn("git add -- events.json update-meta.json", update)
