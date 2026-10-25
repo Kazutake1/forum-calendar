@@ -5,15 +5,15 @@ const path=require('node:path');
 const html=fs.readFileSync(path.resolve(__dirname,'../index.html'),'utf8');
 const functionNames=['eventMatches','selectVisibleEvents','groupEventsByDate'];
 const getFn=name=>{
-  const line=html.split('\\n').find(l=>l.startsWith('function '+name+'('));
+  const line=html.split('\n').find(l=>l.startsWith('function '+name+'('));
   assert.ok(line,'Missing pure selector: '+name);
   return line;
 };
-const venues=html.split('\\n').find(l=>l.startsWith('const venuesOf='));
+const venues=html.split('\n').find(l=>l.startsWith('const venuesOf='));
 assert.ok(venues);
 const ctx={};
 vm.createContext(ctx);
-vm.runInContext(venues+'\\n'+functionNames.map(getFn).join('\\n'),ctx);
+vm.runInContext(venues+'\n'+functionNames.map(getFn).join('\n'),ctx);
 const records=[
   {date:'2026-11-01',title:'Morning Classic',hall:'小ホール',venues:['小ホール'],time:'10:00'},
   {date:'2026-11-01',title:'屋外イベント',hall:'文化の丘公園',venues:['文化の丘公園'],time:'13:00'},
