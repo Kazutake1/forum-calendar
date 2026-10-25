@@ -54,7 +54,7 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
 
         source = workflow("update-events.yml")
         fragment = source.split("name: Validate generated event files (read-only)", 1)[1]
-        match = re.search(r"(?ms)^          python - <<'PY'\\n(.*?)^          PY$", fragment)
+        match = re.search(r"(?ms)^          python - <<'PY'\n(.*?)^          PY$", fragment)
         self.assertIsNotNone(match, "Missing executable event output validation")
         program = textwrap.dedent(match.group(1))
         env = dict(os.environ, PYTHONPATH=str(WORKFLOWS.parents[1]))
@@ -87,7 +87,7 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
 
         source = workflow("monthly-manual-events.yml")
         fragment = source.split("name: Validate archived records (read-only)", 1)[1]
-        match = re.search(r"(?ms)^          python - <<'PY'\\n(.*?)^          PY$", fragment)
+        match = re.search(r"(?ms)^          python - <<'PY'\n(.*?)^          PY$", fragment)
         self.assertIsNotNone(match, "Missing executable manual archive validation")
         program = textwrap.dedent(match.group(1))
         env = dict(os.environ, PYTHONPATH=str(WORKFLOWS.parents[1]))
