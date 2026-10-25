@@ -1,4 +1,4 @@
-"""Offline guards for daily GitHub App Draft PR writer.
+"""Offline guards for CI-gated automated GitHub App daily PR writer.
 
 No network, no production updater, no Pages deployment, no real GitHub token.
 """
@@ -29,14 +29,14 @@ def shell_step(source, name):
 
 
 class DailyAppPrTests(unittest.TestCase):
-    def test_daily_writer_is_review_only_with_no_main_push_or_pages_rebuild(self):
+    def test_daily_writer_is_auto_ci_gated_with_no_main_push_or_pages_rebuild(self):
         source = DAILY.read_text(encoding="utf-8")
         self.assertIn("cron: '20 22 * * *'", source)
         self.assertIn("workflow_dispatch:", source)
         self.assertIn("if: github.ref == 'refs/heads/main'", source)
         self.assertIn("group: forum-calendar-main-write", source)
         self.assertIn("cancel-in-progress: false", source)
-        self.assertIn("permissions:\n  contents: read\n", source)
+        self.assertIn("permissions:\n  contents: read\n  actions: read\n", source)
         self.assertIn("persist-credentials: false", source)
         self.assertNotIn("git push", source)
         self.assertNotIn("pages/builds", source)
@@ -49,11 +49,14 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertLess(source.index("name: Check exact daily output files"),
                         source.index("name: Issue short-lived repository-scoped GitHub App token"))
         self.assertLess(source.index("name: Issue short-lived repository-scoped GitHub App token"),
-                        source.index("name: Open review-only daily event Draft PR"))
+                        source.index("name: Open daily event PR for verified automatic publication"))
+        self.assertLess(source.index("name: Open daily event PR for verified automatic publication"),
+                        source.index("name: Verify exact PR and CI before automatic publication"))
+        self.assertIn("run: python daily_auto_merge.py", source)
 
     def test_app_token_only_if_changed_and_publish_exact_allowlist(self):
         source = DAILY.read_text(encoding="utf-8")
-        self.assertEqual(source.count("if: steps.changes.outputs.changed == 'true'"), 2)
+        self.assertGreaterEqual(source.count("if: steps.changes.outputs.changed == 'true'"), 2)
         self.assertIn("client-id: ${{ vars.FORUM_CALENDAR_APP_CLIENT_ID }}", source)
         self.assertIn("private-key: ${{ secrets.FORUM_CALENDAR_APP_PRIVATE_KEY }}", source)
         self.assertIn("permission-contents: write", source)
@@ -64,11 +67,12 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertIn("git status --porcelain --untracked-files=all", source)
         self.assertIn("git diff --cached --quiet --", source)
         self.assertIn("automation/daily-events/", source)
-        self.assertIn("-F draft=true", source)
+        self.assertIn("-F draft=false", source)
+        self.assertNotIn("-F draft=true", source)
         self.assertIn("git/ref/heads/main", source)
         self.assertIn('if [[ "$current" != "$BASE_SHA" ]]', source)
         self.assertIn("--paginate", source)
-        self.assertIn("human approval", source)
+        self.assertIn("Checking CI before publication".lower(), source.lower())
 
     def test_monthly_writer_is_unchanged(self):
         monthly = MONTHLY.read_text(encoding="utf-8")
@@ -78,7 +82,7 @@ class DailyAppPrTests(unittest.TestCase):
 
     def _exercise_submit(self, latest_sha, pending="", fail_put=False, changed=("events.json", "update-meta.json")):
         script = shell_step(DAILY.read_text(encoding="utf-8"),
-                            "Open review-only daily event Draft PR")
+                            "Open daily event PR for verified automatic publication")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "events.json").write_text("[]\n", encoding="utf-8")
@@ -98,7 +102,7 @@ class DailyAppPrTests(unittest.TestCase):
                 "  if [[ \"$FAKE_FAIL_PUT\" == 1 ]]; then exit 19; fi\n"
                 "fi\n"
                 "if [[ \"$*\" == *'/pulls -X POST'* ]]; then\n"
-                "  printf '%s\\n' 'https://github.com/Kazutake1/forum-calendar/pull/99999'\n"
+                "  printf '%s\\n' '99999'\n"
                 "fi\n",
                 encoding="utf-8",
             )
@@ -133,7 +137,7 @@ class DailyAppPrTests(unittest.TestCase):
                     if calls.exists() else [],
                     summary.read_text(encoding="utf-8") if summary.exists() else "")
 
-    def test_fake_github_creates_two_outputs_and_draft_pr_only(self):
+    def test_fake_github_creates_two_outputs_and_reviewable_pr_only(self):
         code, calls, summary = self._exercise_submit("a" * 40)
         self.assertEqual(code, 0)
         self.assertEqual(len(calls), 6, calls)
@@ -144,14 +148,14 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertIn("/contents/events.json -X PUT", calls[3])
         self.assertIn("/contents/update-meta.json -X PUT", calls[4])
         self.assertIn("/pulls -X POST", calls[5])
-        self.assertIn("-F draft=true", calls[5])
-        self.assertIn("pull/99999", summary)
+        self.assertIn("-F draft=false", calls[5])
+        self.assertIn("Submitted daily update PR #99999", summary)
 
     def test_fake_github_does_not_create_pr_if_review_pending_or_main_changed(self):
         code, calls, summary = self._exercise_submit("a" * 40, pending="34")
-        self.assertEqual(code, 0)
+        self.assertNotEqual(code, 0)
         self.assertEqual(len(calls), 1)
-        self.assertIn("awaiting review", summary)
+        self.assertEqual(summary, "")
         code, calls, summary = self._exercise_submit("b" * 40)
         self.assertNotEqual(code, 0)
         self.assertEqual(len(calls), 2)
@@ -170,7 +174,7 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertEqual(len(calls), 5)
         self.assertEqual(len([c for c in calls if "/contents/" in c]), 1)
         self.assertIn("/contents/events.json", " ".join(calls))
-        self.assertIn("pull/99999", summary)
+        self.assertIn("Submitted daily update PR #99999", summary)
 
 
 if __name__ == "__main__":
