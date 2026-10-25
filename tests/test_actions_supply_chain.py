@@ -11,9 +11,10 @@ ROOT = Path(__file__).resolve().parents[1] / ".github" / "workflows"
 CHECKOUT = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"
 PYTHON = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
 NODE = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
+JEKYLL_PREVIEW = "actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697"
 EXPECTED = {
     "monthly-manual-events.yml": [CHECKOUT, PYTHON],
-    "test-integrity.yml": [CHECKOUT, PYTHON, NODE],
+    "test-integrity.yml": [CHECKOUT, PYTHON, NODE, JEKYLL_PREVIEW],
     "update-events.yml": [CHECKOUT, PYTHON],
 }
 
