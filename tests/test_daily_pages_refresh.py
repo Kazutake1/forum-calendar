@@ -86,7 +86,7 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", monthly)
         self.assertIn("cron: '10 1 1 * *'", monthly)
         self.assertIn("workflow_dispatch:", monthly)
-        self.assertNotIn("\\n  push:\\n", monthly,
+        self.assertNotIn(chr(10) + "  push:" + chr(10), monthly,
                          "Monthly writer must not run when migration PR is merged")
         self.assertIn("run: python monthly_archive_guard.py", monthly)
         self.assertIn("run: python monthly_auto_merge.py", monthly)

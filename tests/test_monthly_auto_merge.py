@@ -84,6 +84,10 @@ class MonthlyMergeTests(unittest.TestCase):
             gate.cleanup_stale_monthly_prs()
         self.assertIn((f"repos/{gate.REPO}/pulls/{self.number}", "PATCH"), requests)
         self.assertFalse(any("/merge" in p for p, _ in requests))
+        summary = Path(os.environ["GITHUB_STEP_SUMMARY"]).read_text()
+        self.assertIn(f"Closed stale App-owned monthly PR #{self.number}; no data removed.\\n",
+                      summary)
+        self.assertEqual(summary.count("\\n"), 1)
 
     def test_cleanup_rejects_recent_foreign_fork_or_invalid_monthly_pr(self):
         for problem in ("recent", "author", "fork", "branch", "missing-created"):
