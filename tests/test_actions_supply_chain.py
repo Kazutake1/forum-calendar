@@ -16,7 +16,7 @@ EXPECTED = {
     "app-smoke-test.yml": ["actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510"],
     "monthly-manual-events.yml": [CHECKOUT, PYTHON],
     "test-integrity.yml": [CHECKOUT, PYTHON, NODE, JEKYLL_PREVIEW],
-    "update-events.yml": [CHECKOUT, PYTHON],
+    "update-events.yml": [CHECKOUT, PYTHON, "actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510"],
 }
 
 
@@ -44,13 +44,14 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         update = (ROOT / "update-events.yml").read_text(encoding="utf-8")
         verify = (ROOT / "test-integrity.yml").read_text(encoding="utf-8")
         self.assertIn("permissions:\n  contents: write\n  pages: write", monthly)
-        self.assertIn("permissions:\n  contents: write\n  pages: write", update)
+        self.assertIn("permissions:\n  contents: read", update)
+        self.assertNotIn("pages: write", update)
         self.assertIn("permissions:\n  contents: read\n", verify)
         self.assertNotIn("permissions: write-all", monthly + update + verify)
         self.assertNotIn("pages: write", verify)
         self.assertIn("persist-credentials: false", verify)
         self.assertIn("persist-credentials: true", monthly)
-        self.assertIn("persist-credentials: true", update)
+        self.assertIn("persist-credentials: false", update)
 
     def test_scheduled_commands_and_ocr_policy_are_preserved(self):
         monthly = (ROOT / "monthly-manual-events.yml").read_text(encoding="utf-8")
@@ -61,8 +62,10 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         self.assertIn("git push origin HEAD:main", monthly)
         self.assertIn("https://api.github.com/repos/${REPOSITORY}/pages/builds", monthly)
         self.assertIn("python update_events_no_ocr.py", update)
-        self.assertIn("git add events.json update-meta.json", update)
-        self.assertIn("git push", update)
+        self.assertIn("git add -- events.json update-meta.json", update)
+        self.assertIn("-F draft=true", update)
+        self.assertNotIn("git push", update)
+        self.assertNotIn("pages/builds", update)
         self.assertIn("python -m unittest discover -s tests -v", verify)
 
 
