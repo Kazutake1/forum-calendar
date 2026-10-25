@@ -162,12 +162,13 @@ def publish():
         if time.monotonic() >= end:
             raise UnsafeToPublish("Monthly exact-HEAD CI did not finish in time")
         time.sleep(shared.POLL_SECONDS)
-    if shared.current_main() != base:
-        raise UnsafeToPublish("Monthly main moved during CI")
     if inspect_pr(base, branch, number) != (head, paths):
         raise UnsafeToPublish("Monthly PR changed during CI")
     if shared.ci_status(branch, head, number) != "success":
         raise UnsafeToPublish("Monthly CI no longer successful")
+    # Minimize (but cannot eliminate) the race without server-side protection.
+    if shared.current_main() != base:
+        raise UnsafeToPublish("Monthly main moved during CI")
     result = shared.api(f"repos/{REPO}/pulls/{number}/merge", method="PUT",
                         fields=(f"sha={head}", "merge_method=squash"))
     if result.get("merged") is not True:

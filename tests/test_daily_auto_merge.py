@@ -175,6 +175,27 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
                 mod.cleanup_stale_daily_prs()
 
 
+    def test_main_is_rechecked_immediately_before_irreversible_merge(self):
+        observed = []
+        main_states = iter([self.base, self.base, self.after])
+        def current():
+            observed.append("MAIN_CHECK")
+            return next(main_states)
+        def remote(endpoint, **kwargs):
+            if endpoint.endswith(f"/pulls/{self.number}/merge"):
+                observed.append("MERGE")
+            elif "/actions/workflows/test-integrity.yml/runs?" in endpoint:
+                observed.append("CI_CHECK")
+            elif endpoint.endswith(f"/pulls/{self.number}"):
+                observed.append("PR_CHECK")
+            return self.fake_api(endpoint, **kwargs)
+        with patch.object(mod, "api", side_effect=remote), patch.object(
+                mod, "current_main", side_effect=current):
+            mod.publish()
+        index = observed.index("MERGE")
+        self.assertEqual(observed[index - 1], "MAIN_CHECK")
+        self.assertIn("CI_CHECK", observed[:index])
+
     def test_healthy_pr_and_exact_head_ci_allow_publication(self):
         with patch.object(mod, "api", side_effect=self.fake_api), patch.object(
                 mod, "current_main", side_effect=[self.base, self.base, self.after]):

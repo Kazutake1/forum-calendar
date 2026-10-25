@@ -315,13 +315,15 @@ def publish():
             raise UnsafeToPublish("Required PR CI did not finish in time")
         time.sleep(POLL_SECONDS)
 
-    # Recheck GitHub reality after CI; never trust only a prior approval.
-    if current_main() != base_sha:
-        raise UnsafeToPublish("main moved during PR CI; refusing stale update")
+    # Recheck actual PR bytes and CI before the final main check; keep the
+    # unavoidable REST merge race window as short as possible. Full atomicity
+    # still requires branch protection once the monthly writer is migrated.
     if inspect_pr(base_sha, branch, number) != head_sha:
         raise UnsafeToPublish("PR head changed after CI")
     if ci_status(branch, head_sha, number) != "success":
         raise UnsafeToPublish("Required CI status changed")
+    if current_main() != base_sha:
+        raise UnsafeToPublish("main moved during PR CI; refusing stale update")
 
     result = api(f"repos/{REPO}/pulls/{number}/merge", method="PUT",
                  fields=(f"sha={head_sha}", "merge_method=squash"))

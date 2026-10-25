@@ -18,19 +18,39 @@ SEARCH_API = urljoin(BASE, "common/_api/course_search")
 TARGET_STATION = "稲沢"
 UA = "forum-calendar-auto-updater/2.0 (+GitHub Actions)"
 ALLOWED_HOST = "walking.jr-central.co.jp"
+MAX_DOWNLOAD = 10 * 1024 * 1024
+MAX_REDIRECTS = 5
 
 
 def _get(url):
-    u = urlparse(url)
-    if u.scheme != "https" or u.hostname != ALLOWED_HOST:
-        raise RuntimeError("JR東海の許可されたHTTPS URLではありません")
-    r = requests.get(url, headers={"User-Agent": UA}, timeout=30, allow_redirects=True)
-    r.raise_for_status()
-    final = urlparse(r.url)
-    if final.scheme != "https" or final.hostname != ALLOWED_HOST:
-        raise RuntimeError("JR東海以外へリダイレクトされました")
-    if len(r.content) > 10 * 1024 * 1024:
-        raise RuntimeError("JR東海レスポンスが大きすぎます")
+    for redirects in range(MAX_REDIRECTS + 1):
+        u = urlparse(url)
+        if (u.scheme != "https" or u.hostname != ALLOWED_HOST
+                or u.username is not None or u.password is not None):
+            raise RuntimeError("JR東海の許可されたHTTPS URLではありません")
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=30,
+                         stream=True, allow_redirects=False)
+        if r.status_code in (301, 302, 303, 307, 308):
+            destination = r.headers.get("Location")
+            r.close()
+            if not destination or redirects == MAX_REDIRECTS:
+                raise RuntimeError("JR東海のリダイレクトが不正または上限超過です")
+            url = urljoin(url, destination)
+            continue
+        try:
+            r.raise_for_status()
+            data = bytearray()
+            for chunk in r.iter_content(65536):
+                if chunk:
+                    data.extend(chunk)
+                    if len(data) > MAX_DOWNLOAD:
+                        raise RuntimeError("JR東海レスポンスが大きすぎます")
+            r._content = bytes(data)
+            r._content_consumed = True
+        except Exception:
+            r.close()
+            raise
+        break
     ctype = r.headers.get("Content-Type", "").lower()
     if "text" in ctype or "json" in ctype or "javascript" in ctype:
         r.encoding = r.apparent_encoding or r.encoding
