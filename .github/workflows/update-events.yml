@@ -33,6 +33,27 @@ jobs:
       - name: Update event data (OCR disabled)
         run: python update_events_no_ocr.py
 
+      - name: Validate generated event files (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from update_events import load_required_events
+
+          events = load_required_events(Path("events.json"))
+          meta = json.loads(Path("update-meta.json").read_text(encoding="utf-8"))
+          if (not isinstance(meta, dict)
+                  or type(meta.get("event_count")) is not int
+                  or meta["event_count"] != len(events)):
+              raise RuntimeError("Generated events and update metadata disagree")
+          print(f"Validated {len(events)} generated events and update metadata")
+          PY
+
+      - name: Verify updated data before committing to main
+        run: python -m unittest discover -s tests -v
+
       - name: Commit updated data
         run: |
           git config user.name "forum-calendar-bot"
