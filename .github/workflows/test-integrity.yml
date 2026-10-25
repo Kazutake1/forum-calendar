@@ -2,22 +2,6 @@ name: Calendar Integrity Tests
 on:
   push:
     branches: [main]
-    paths:
-      - 'index.html'
-      - 'sw.js'
-      - 'manual-events.js'
-      - 'verified-schedule.js'
-      - 'verified_schedule.json'
-      - 'event-policy.json'
-      - 'event_integrity.py'
-      - 'update_events.py'
-      - 'update_events_no_ocr.py'
-      - 'jr_walking_web.py'
-      - 'manage_manual_events.py'
-      - 'tests/**'
-      - 'events.json'
-      - 'manual_events.json'
-      - '.github/workflows/**'
   pull_request:
     branches: [main]
 permissions:
@@ -83,4 +67,49 @@ jobs:
           ids=[event['id'] for event in manual]
           assert len(ids)==len(set(ids)), 'Duplicate manual event IDs'
           print(f'Validated {len(auto)} automatic and {len(manual)} manual events')
+          PY
+      - name: Preview GitHub Pages Jekyll build (test only; no deploy)
+        uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1; Docker image ghcr.io/actions/jekyll-build-pages:v1.0.13
+        with:
+          source: .
+          destination: ./_site
+      - name: Verify actual generated Pages payload (fail closed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          source = Path(".")
+          output = Path("_site")
+          required = {
+              "index.html", "sw.js", "manifest.json",
+              "icon-180.png", "icon-192.png", "icon-512.png",
+              "manual-events.js", "verified-schedule.js",
+              "events.json", "manual_events.json",
+              "verified_schedule.json", "event-policy.json",
+              "update-meta.json",
+          }
+          generated_theme_css = {"assets/css/style.css"}
+          expected = required | generated_theme_css
+          if not output.is_dir():
+              raise AssertionError("Jekyll build output is absent")
+          actual = {p.relative_to(output).as_posix()
+                    for p in output.rglob("*") if p.is_file()}
+          unexpected = sorted(actual - expected)
+          missing = sorted(expected - actual)
+          if missing or unexpected:
+              raise AssertionError(
+                  f"Pages manifest mismatch. Missing: {missing}; unexpected: {unexpected}"
+              )
+          for name in sorted(required):
+              original = (source / name).read_bytes()
+              published = (output / name).read_bytes()
+              if hashlib.sha256(original).digest() != hashlib.sha256(published).digest():
+                  raise AssertionError(f"Published PWA asset changed: {name}")
+          print(
+              "PASS: Jekyll 3 build output contains only 13 byte-identical "
+              "PWA assets plus expected generated theme CSS (14 files total)"
+          )
           PY
