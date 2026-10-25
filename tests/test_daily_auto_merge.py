@@ -5,6 +5,7 @@ merges are used. Assertions cover exact PR identity, event-file bytes, exact
 check SHA and refusal to publish on any unexpected or failed state.
 """
 import base64
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -90,6 +91,74 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
             self.assertIn("merge_method=squash", fields)
             return {"merged": True, "sha": self.after}
         raise AssertionError("Unexpected API endpoint: " + endpoint)
+
+
+    def test_old_verified_app_pr_is_closed_to_unblock_next_daily_update(self):
+        old = json.loads(json.dumps(self.pr))
+        old["created_at"] = (
+            datetime.now(timezone.utc) - timedelta(hours=26)
+        ).isoformat()
+        calls = []
+        def fake(endpoint, *, method=None, fields=(), **kwargs):
+            calls.append((endpoint, method))
+            if endpoint.endswith("/git/ref/heads/main"):
+                return {"object": {"sha": self.base}}
+            if endpoint.endswith("/pulls?state=open&base=main&per_page=100"):
+                return [{"number": self.number, "head": {"ref": self.branch}}]
+            if endpoint.endswith(f"/pulls/{self.number}") and not method:
+                return old
+            if endpoint.endswith(f"/pulls/{self.number}") and method == "PATCH":
+                self.assertEqual(fields, ("state=closed",))
+                return {"number": self.number, "state": "closed"}
+            raise AssertionError(endpoint)
+        with patch.object(mod, "api", side_effect=fake):
+            mod.cleanup_stale_daily_prs()
+        self.assertIn((f"repos/{mod.REPO}/pulls/{self.number}", "PATCH"), calls)
+
+    def test_recent_or_untrusted_stale_daily_pr_is_never_closed(self):
+        for case in ("recent", "wrong-author", "fork", "invalid-branch"):
+            with self.subTest(case=case):
+                old = json.loads(json.dumps(self.pr))
+                old["created_at"] = (
+                    datetime.now(timezone.utc) - timedelta(hours=26)
+                ).isoformat()
+                if case == "recent":
+                    old["created_at"] = datetime.now(timezone.utc).isoformat()
+                elif case == "wrong-author":
+                    old["user"]["login"] = "untrusted-user"
+                elif case == "fork":
+                    old["head"]["repo"]["full_name"] = "untrusted/fork"
+                elif case == "invalid-branch":
+                    old["head"]["ref"] = "automation/daily-events/handmade"
+                calls = []
+                def fake(endpoint, *, method=None, **kwargs):
+                    calls.append((endpoint, method))
+                    if endpoint.endswith("/git/ref/heads/main"):
+                        return {"object": {"sha": self.base}}
+                    if endpoint.endswith("/pulls?state=open&base=main&per_page=100"):
+                        return [{"number": self.number, "head": {"ref": self.branch}}]
+                    if endpoint.endswith(f"/pulls/{self.number}") and not method:
+                        return old
+                    raise AssertionError("Unexpected mutation: " + endpoint)
+                with patch.object(mod, "api", side_effect=fake):
+                    with self.assertRaises(mod.UnsafeToPublish):
+                        mod.cleanup_stale_daily_prs()
+                self.assertFalse(any(method for _, method in calls))
+
+    def test_cleanup_refuses_ambiguous_list_or_moved_main(self):
+        with patch.object(mod, "current_main", return_value="e" * 40), \\
+             patch.object(mod, "api") as mocked:
+            with self.assertRaises(mod.UnsafeToPublish):
+                mod.cleanup_stale_daily_prs()
+            mocked.assert_not_called()
+        with patch.object(mod, "current_main", return_value=self.base), \\
+             patch.object(mod, "api", return_value=[
+                 {"number": 1, "head": {"ref": self.branch}},
+                 {"number": 2, "head": {"ref": "automation/daily-events/2-1"}},
+             ]):
+            with self.assertRaises(mod.UnsafeToPublish):
+                mod.cleanup_stale_daily_prs()
+
 
     def test_healthy_pr_and_exact_head_ci_allow_publication(self):
         with patch.object(mod, "api", side_effect=self.fake_api), patch.object(

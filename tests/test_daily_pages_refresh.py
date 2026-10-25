@@ -55,7 +55,10 @@ class DailyAppPrTests(unittest.TestCase):
                         source.index("name: Open daily event PR for verified automatic publication"))
         self.assertLess(source.index("name: Open daily event PR for verified automatic publication"),
                         source.index("name: Verify exact PR and CI before automatic publication"))
+        self.assertIn("run: python daily_auto_merge.py --cleanup-stale", source)
         self.assertIn("run: python daily_auto_merge.py", source)
+        self.assertLess(source.index("name: Reconcile stale daily PRs"),
+                        source.index("name: Open daily event PR"))
 
     def test_app_token_only_if_changed_and_publish_exact_allowlist(self):
         source = DAILY.read_text(encoding="utf-8")

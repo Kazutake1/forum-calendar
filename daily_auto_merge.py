@@ -8,6 +8,8 @@ successful 'Calendar Integrity Tests' pull_request run at the exact head SHA.
 No retries on a failed check; no secret values or source data are logged.
 """
 import base64
+from datetime import datetime, timedelta, timezone
+import re
 import json
 import os
 from pathlib import Path
@@ -138,6 +140,72 @@ def ci_status(branch, head_sha, number):
     return "success"
 
 
+
+def cleanup_stale_daily_prs():
+    """Close only an old, verifiably App-owned daily PR; never merge stale data.
+
+    The scheduled job times out after 35 minutes. A two-hour age limit avoids
+    touching a PR from a still-active or recently interrupted update. Any
+    unknown daily-looking PR halts the new run rather than being modified.
+    """
+    base_sha = os.environ.get("BASE_SHA", "")
+    if (os.environ.get("REPOSITORY") != REPO or
+            not re.fullmatch(r"[0-9a-f]{40}", base_sha) or
+            not os.environ.get("GH_TOKEN")):
+        raise UnsafeToPublish("Invalid cleanup repository, base SHA or App credentials")
+    if current_main() != base_sha:
+        raise UnsafeToPublish("main changed before stale PR cleanup")
+
+    opened = api(f"repos/{REPO}/pulls?state=open&base=main&per_page=100")
+    if not isinstance(opened, list) or len(opened) >= 100:
+        raise UnsafeToPublish("Cannot fully inspect open PR list")
+    candidates = [
+        item for item in opened
+        if str((item.get("head") or {}).get("ref", "")).startswith(
+            "automation/daily-events/")
+    ]
+    if not candidates:
+        return
+    if len(candidates) != 1:
+        raise UnsafeToPublish("Multiple old daily PRs; no automatic cleanup")
+
+    number = candidates[0].get("number")
+    if type(number) is not int or number < 1:
+        raise UnsafeToPublish("Unrecognized pending daily PR number")
+    pr = api(f"repos/{REPO}/pulls/{number}")
+    head = pr.get("head") or {}
+    created_at = pr.get("created_at")
+    if not (pr.get("number") == number and pr.get("state") == "open"
+            and pr.get("merged") is False
+            and (pr.get("user") or {}).get("login") == BOT
+            and re.fullmatch(r"automation/daily-events/[0-9]+-[0-9]+",
+                             str(head.get("ref", "")))
+            and (head.get("repo") or {}).get("full_name") == REPO
+            and (pr.get("base") or {}).get("ref") == "main"):
+        raise UnsafeToPublish("Pending daily PR is not a verified App-owned update")
+    try:
+        created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            raise ValueError("missing timezone")
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise UnsafeToPublish("Pending daily PR has invalid creation time") from exc
+    if datetime.now(timezone.utc) - created < timedelta(hours=2):
+        raise UnsafeToPublish("A recent daily PR may still be active")
+    if current_main() != base_sha:
+        raise UnsafeToPublish("main changed during stale PR cleanup")
+
+    result = api(f"repos/{REPO}/pulls/{number}", method="PATCH",
+                 fields=("state=closed",))
+    if result.get("number") != number or result.get("state") != "closed":
+        raise UnsafeToPublish("GitHub did not confirm stale PR closure")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+    if summary:
+        with Path(summary).open("a", encoding="utf-8") as handle:
+            handle.write(
+                f"Closed stale App-owned daily PR #{number} before a fresh update.\\n")
+    print(f"Closed stale daily event PR #{number}; a new verified update may proceed.")
+
+
 def publish():
     base_sha, branch, number = expected_environment()
     if current_main() != base_sha:
@@ -178,7 +246,12 @@ def publish():
 
 if __name__ == "__main__":
     try:
-        publish()
+        if sys.argv[1:] == ["--cleanup-stale"]:
+            cleanup_stale_daily_prs()
+        elif len(sys.argv) == 1:
+            publish()
+        else:
+            raise UnsafeToPublish("Unexpected command arguments")
     except (UnsafeToPublish, KeyError, OSError, subprocess.TimeoutExpired) as exc:
         print(f"Daily update stopped without automatic merge: {exc}", file=sys.stderr)
         raise SystemExit(1)
