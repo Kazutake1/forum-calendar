@@ -1,1 +1,49 @@
+# Operating-system and editor artifacts
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Local credentials and environment configuration (never commit)
+.env
+.env.*
+*.env
+*.env.*
+credentials.json
+secrets.json
+*service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+id_rsa*
+id_ed25519*
+
+# Local databases and logs
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Python and test caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local JavaScript dependencies and generated outputs
+node_modules/
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+dist/
+build/
+.cache/
