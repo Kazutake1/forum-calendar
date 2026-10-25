@@ -33,6 +33,9 @@ jobs:
       - name: Update event data (OCR disabled)
         run: python update_events_no_ocr.py
 
+      - name: Verify updated data before committing to main
+        run: python -m unittest discover -s tests -v
+
       - name: Commit updated data
         run: |
           git config user.name "forum-calendar-bot"
