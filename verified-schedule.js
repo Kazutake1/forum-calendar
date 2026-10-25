@@ -129,10 +129,8 @@
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const usingCache = response.headers && response.headers.get &&
         response.headers.get('X-Forum-Verified-Cache') === 'stale';
-      const merged = mergeVerifiedSchedule(EVENTS, await response.json());
-      const before = EVENTS;
-      EVENTS = merged;
-      try { refresh(); } catch (error) { EVENTS = before; throw error; }
+      const verified = await response.json();
+      const merged = window.applyForumEventOverlay(current => mergeVerifiedSchedule(current, verified));
       if (merged.reviewWarnings.length && status) {
         status.classList.add('stale');
         status.textContent += ` ・ 催事予定表の照合要確認：${merged.reviewWarnings.length}件`;

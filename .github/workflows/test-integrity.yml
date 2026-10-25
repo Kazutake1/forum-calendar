@@ -37,6 +37,8 @@ jobs:
         run: node tests/test_month_animation.cjs
       - name: Calendar selection regression tests
         run: node tests/test_calendar_selectors.cjs
+      - name: Event overlay transaction regression tests
+        run: node tests/test_event_overlay_transaction.cjs
       - name: Verified schedule offline regression tests
         run: node tests/test_verified_offline.cjs
       - name: Automatic event offline cache regression tests
