@@ -43,6 +43,79 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
         self.assertIn("git add -- manual_events.json", source)
         self.assertNotIn("continue-on-error: true", source)
 
+    def test_generated_event_guard_checks_actual_file_contents(self):
+        import json
+        import os
+        import re
+        import subprocess
+        import sys
+        import tempfile
+        import textwrap
+
+        source = workflow("update-events.yml")
+        fragment = source.split("name: Validate generated event files (read-only)", 1)[1]
+        match = re.search(r"(?ms)^          python - <<'PY'\\n(.*?)^          PY$", fragment)
+        self.assertIsNotNone(match, "Missing executable event output validation")
+        program = textwrap.dedent(match.group(1))
+        env = dict(os.environ, PYTHONPATH=str(WORKFLOWS.parents[1]))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            events = [{"date": "2099-10-01", "title": "架空演奏会", "hall": "中ホール"}]
+            (root / "events.json").write_text(json.dumps(events), encoding="utf-8")
+            meta = root / "update-meta.json"
+            meta.write_text(json.dumps({"event_count": 1}), encoding="utf-8")
+            def run_guard():
+                return subprocess.run(
+                    [sys.executable, "-c", program], cwd=root, env=env,
+                    capture_output=True, text=True, check=False,
+                )
+            self.assertEqual(run_guard().returncode, 0, "Valid generated data rejected")
+            meta.write_text(json.dumps({"event_count": 2}), encoding="utf-8")
+            self.assertNotEqual(run_guard().returncode, 0, "Metadata mismatch allowed")
+            meta.write_text(json.dumps({"event_count": 1}), encoding="utf-8")
+            (root / "events.json").write_text("[]", encoding="utf-8")
+            self.assertNotEqual(run_guard().returncode, 0, "Empty event dataset allowed")
+
+    def test_monthly_guard_checks_newly_written_archive_and_never_writes(self):
+        import json
+        import os
+        import re
+        import subprocess
+        import sys
+        import tempfile
+        import textwrap
+
+        source = workflow("monthly-manual-events.yml")
+        fragment = source.split("name: Validate archived records (read-only)", 1)[1]
+        match = re.search(r"(?ms)^          python - <<'PY'\\n(.*?)^          PY$", fragment)
+        self.assertIsNotNone(match, "Missing executable manual archive validation")
+        program = textwrap.dedent(match.group(1))
+        env = dict(os.environ, PYTHONPATH=str(WORKFLOWS.parents[1]))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            event = {
+                "id": "test-active", "date": "2099-10-01",
+                "title": "架空演奏会", "hall": "中ホール",
+                "source_type": "other", "source_url": "https://example.org/event",
+            }
+            (root / "events.json").write_text("[]", encoding="utf-8")
+            active = root / "manual_events.json"
+            active.write_text(json.dumps([event]), encoding="utf-8")
+            before = active.read_bytes()
+            def run_guard():
+                return subprocess.run(
+                    [sys.executable, "-c", program], cwd=root, env=env,
+                    capture_output=True, text=True, check=False,
+                )
+            self.assertEqual(run_guard().returncode, 0, "Valid manual records rejected")
+            self.assertEqual(active.read_bytes(), before, "Dry-run altered manual data")
+            self.assertFalse((root / "archive").exists(), "Dry-run created archives")
+            (root / "archive").mkdir()
+            archive = root / "archive" / "manual_events_2025.json"
+            archive.write_text(json.dumps([dict(event, date="2025-10-01")]), encoding="utf-8")
+            self.assertNotEqual(run_guard().returncode, 0, "Duplicate identity allowed")
+            self.assertEqual(active.read_bytes(), before, "Failure altered manual data")
+
     def test_writer_schedule_and_concurrency_remain_intact(self):
         auto = workflow("update-events.yml")
         monthly = workflow("monthly-manual-events.yml")
