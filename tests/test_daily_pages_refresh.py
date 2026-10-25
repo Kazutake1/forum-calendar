@@ -43,7 +43,10 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertNotIn("continue-on-error: true", source)
         self.assertIn("run: python update_events_no_ocr.py", source)
         self.assertLess(source.index("name: Validate generated event files"),
+                        source.index("name: Reject suspicious event loss before proposing PR"))
+        self.assertLess(source.index("name: Reject suspicious event loss before proposing PR"),
                         source.index("name: Verify updated data before proposing PR"))
+        self.assertIn("run: python daily_event_volume_guard.py", source)
         self.assertLess(source.index("name: Verify updated data before proposing PR"),
                         source.index("name: Check exact daily output files"))
         self.assertLess(source.index("name: Check exact daily output files"),
