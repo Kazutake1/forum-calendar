@@ -125,10 +125,9 @@ jobs:
             if git diff --cached --quiet -- "$path"; then
               continue
             fi
-            encoded=$(base64 < "$path" | tr -d '\n')
-            gh api "repos/${REPOSITORY}/contents/${path}" -X PUT \
-              -f branch="$branch" -f content="$encoded" \
-              -f message="Propose updated ${path} for review" >/dev/null
+            # Send JSON on stdin so growing event data never appears as a CLI argument.
+            python -c 'import base64,json,sys; from pathlib import Path; p,b=sys.argv[1:]; print(json.dumps({"branch":b,"content":base64.b64encode(Path(p).read_bytes()).decode("ascii"),"message":"Propose updated "+p+" for review"}))' "$path" "$branch" \
+              | gh api "repos/${REPOSITORY}/contents/${path}" -X PUT --input - >/dev/null
           done
           pr_url=$(gh api "repos/${REPOSITORY}/pulls" -X POST \
             -f head="$branch" -f base=main \
