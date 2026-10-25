@@ -54,6 +54,9 @@ jobs:
           print(f"Validated {len(events)} generated events and update metadata")
           PY
 
+      - name: Reject suspicious event loss before proposing PR
+        run: python daily_event_volume_guard.py
+
       - name: Verify updated data before proposing PR
         run: python -m unittest discover -s tests -v
 
