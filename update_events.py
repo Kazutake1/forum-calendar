@@ -350,7 +350,7 @@ def verified_schedule_lock():
 
 
 def main():
-    old=dedupe(load_required_events(EVENTS_FILE)); old=[e for e in old if not is_stale_event_guide_notice(e)]; old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; city_park_authoritative=False; jr_success=False
+    old=dedupe(load_required_events(EVENTS_FILE)); old=[e for e in old if not is_stale_event_guide_notice(e)]; old_meta=load_json(META_FILE,{}); run_at=now_iso(); notes=[]; guide=[]; schedule=[]; park=[]; jr_walk=[]; schedule_trusted=False; target_yms=set(); source_success=False; forum_success=False; park_success=False; jr_success=False
     previous_urls=old_meta.get("resolved_urls") or {}; event_guide_pref=previous_urls.get("events") or DEFAULT_EVENT_GUIDE; schedule_page_pref=previous_urls.get("schedule") or DEFAULT_SCHEDULE_PAGE; event_guide=event_guide_pref; schedule_page=schedule_page_pref
     try: event_guide,mode=discover_page("events",event_guide_pref); notes.append(f"イベント案内URL: {mode} {event_guide}")
     except Exception as e: notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")
@@ -375,7 +375,12 @@ def main():
         if target_yms:
             notes.append("催事予定表OCRは無効です。未照合月は既存データを維持: "+", ".join(sorted(target_yms)))
     except Exception as e: notes.append(f"催事予定表確認失敗: {clean(e,180)}")
-    try: city_park,checked=parse_city_park_events(); city_park_authoritative=checked>0; park.extend(city_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（市公式） {len(city_park)}件 / カレンダー{checked}ページ確認")
+    try:
+        city_park,checked=parse_city_park_events()
+        park.extend(city_park)
+        park_success=park_success or checked>0
+        source_success=source_success or checked>0
+        notes.append(f"文化の丘公園（市公式） {len(city_park)}件 / カレンダー{checked}ページ確認")
     except Exception as e: notes.append(f"文化の丘公園（市公式）取得失敗: {clean(e,180)}")
     try: tourism_park,checked=parse_tourism_park_events(); park.extend(tourism_park); park_success=park_success or checked>0; source_success=source_success or checked>0; notes.append(f"文化の丘公園（観光協会） {len(tourism_park)}件 / {checked}ページ確認")
     except Exception as e: notes.append(f"文化の丘公園（観光協会）取得失敗: {clean(e,180)}")
@@ -384,16 +389,14 @@ def main():
     except Exception as e: notes.append(f"JR東海さわやかウォーキング取得失敗: {clean(e,180)}")
     base=old
     if schedule_trusted: base=[e for e in base if not (ym(e) in target_yms and e.get("hall") in HALLS)]; base.extend(schedule)
-    if city_park_authoritative:
-        today=datetime.now().date(); horizon_end=today+timedelta(days=400)
-        def keep_old_park(e):
-            venues=e.get("venues") or [e.get("hall")]
-            if PARK_NAME not in venues: return True
-            try: d=datetime.strptime(e.get("date",""),"%Y-%m-%d").date()
-            except Exception: return True
-            if not (today<=d<=horizon_end): return True
-            return not any(s in e.get("source","") for s in ("city_event_calendar","tourism"))
-        base=[e for e in base if keep_old_park(e)]
+    # A successful page request (or some parsed events) does not prove that all
+    # city calendar pages and individual event pages were read. Never remove old
+    # park events based on a partial/empty scrape; add independently found ones.
+    # A cancellation or deletion needs separately confirmed event-level evidence.
+    if any(PARK_NAME in (e.get("venues") or [e.get("hall")]) and
+           any(s in str(e.get("source") or "") for s in ("city_event_calendar","tourism"))
+           for e in old):
+        notes.append("文化の丘公園: 既存イベントは保持（収集結果だけでは削除を判断しません）")
     base.extend(guide); base.extend(park)
     if jr_success: base=[e for e in base if not (e.get("hall")==JR_INAZAWA or JR_INAZAWA in (e.get("venues") or []))]; base.extend(jr_walk)
     merged=dedupe(base)

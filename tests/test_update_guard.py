@@ -2,6 +2,7 @@
 import json
 import tempfile
 import unittest
+import update_events
 from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -14,6 +15,91 @@ from update_events import (
 
 
 class UpdateSafetyTests(unittest.TestCase):
+    def _collect_park_fixture(self, city_events, city_checked, tourism_events=None, tourism_checked=0):
+        """Run the real updater with only fictional sources and disposable files."""
+        old_city = {
+            "date": "2027-02-05", "title": "既存の市公式公園催事",
+            "hall": "文化の丘公園", "venues": ["文化の丘公園"],
+            "time": "10:00〜", "price": "無料", "source": "city_event_calendar",
+            "official_url": "https://www.city.inazawa.aichi.jp/0000009991.html",
+        }
+        old_tourism = {
+            "date": "2027-02-06", "title": "既存の観光協会公園催事",
+            "hall": "文化の丘公園", "venues": ["文化の丘公園"],
+            "time": "11:00〜", "price": "", "source": "tourism",
+            "official_url": "https://www.inazawa-kankou.jp/archives/9991",
+        }
+        old_hall = {
+            "date": "2027-02-07", "title": "既存のホール演奏会",
+            "hall": "大ホール", "time": "14:00〜", "price": "",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            events = root / "events.json"
+            meta = root / "update-meta.json"
+            events.write_text(json.dumps([old_city, old_tourism, old_hall],
+                                         ensure_ascii=False), encoding="utf-8")
+            meta.write_text("{}", encoding="utf-8")
+            with (
+                patch.object(update_events, "EVENTS_FILE", events),
+                patch.object(update_events, "META_FILE", meta),
+                patch("update_events.discover_page",
+                      side_effect=RuntimeError("fictional source unavailable")),
+                patch("update_events.parse_event_guide", return_value=[]),
+                patch("update_events.find_schedule_pdf",
+                      side_effect=RuntimeError("fictional PDF unavailable")),
+                patch("update_events.parse_city_park_events",
+                      return_value=(city_events, city_checked)),
+                patch("update_events.parse_tourism_park_events",
+                      return_value=(tourism_events or [], tourism_checked)),
+                patch("update_events.parse_jr_inazawa_walks",
+                      side_effect=RuntimeError("fictional JR unavailable")),
+            ):
+                update_events.main()
+            rows = json.loads(events.read_text(encoding="utf-8"))
+            written_meta = json.loads(meta.read_text(encoding="utf-8"))
+        return rows, written_meta, [old_city, old_tourism, old_hall]
+
+    def test_empty_successful_city_calendar_cannot_delete_saved_park_events(self):
+        rows, meta, original = self._collect_park_fixture([], 13)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual({(e["date"], e["title"]) for e in rows},
+                         {(e["date"], e["title"]) for e in original})
+        self.assertTrue(any("既存イベントは保持" in note for note in meta["notes"]))
+
+    def test_partial_city_calendar_adds_new_without_deleting_unseen_old_events(self):
+        new = {
+            "date": "2027-02-08", "title": "新しい市公式公園催事",
+            "hall": "文化の丘公園", "venues": ["文化の丘公園"],
+            "time": "13:00〜", "price": "", "source": "city_event_calendar",
+            "official_url": "https://www.city.inazawa.aichi.jp/0000009992.html",
+        }
+        for pages_checked in (1, 13, 65):
+            with self.subTest(pages_checked=pages_checked):
+                rows, _, old = self._collect_park_fixture([new], pages_checked)
+                pairs = {(e["date"], e["title"]) for e in rows}
+                self.assertEqual(len(rows), 4)
+                self.assertTrue({(e["date"], e["title"]) for e in old}.issubset(pairs))
+                self.assertIn((new["date"], new["title"]), pairs)
+
+    def test_tourism_results_cannot_remove_other_saved_park_events(self):
+        new = {
+            "date": "2027-02-09", "title": "新しい観光協会公園催事",
+            "hall": "文化の丘公園", "venues": ["文化の丘公園"],
+            "time": "15:00〜", "price": "", "source": "tourism",
+            "official_url": "https://www.inazawa-kankou.jp/archives/9992",
+        }
+        rows, _, old = self._collect_park_fixture([], 13, [new], 1)
+        pairs = {(e["date"], e["title"]) for e in rows}
+        self.assertEqual(len(rows), 4)
+        self.assertTrue({(e["date"], e["title"]) for e in old}.issubset(pairs))
+        self.assertIn((new["date"], new["title"]), pairs)
+
+    def test_park_source_failure_keeps_saved_records(self):
+        rows, _, old = self._collect_park_fixture([], 0)
+        self.assertEqual({(e["date"], e["title"]) for e in rows},
+                         {(e["date"], e["title"]) for e in old})
+
     def test_saved_data_fails_closed(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.json"
