@@ -23,7 +23,7 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         for filename, expected in EXPECTED.items():
             with self.subTest(workflow=filename):
                 content = (ROOT / filename).read_text(encoding="utf-8")
-                actual = re.findall(r"^\\s*(?:-\\s*)?uses:\\s*([^\\s#]+)", content, re.M)
+                actual = re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", content, re.M)
                 self.assertEqual(actual, expected, "Unexpected or unpinned action reference")
                 for action in actual:
                     self.assertRegex(action, r"^[a-z-]+/[a-z-]+@[0-9a-f]{40}$")
@@ -32,9 +32,9 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         monthly = (ROOT / "monthly-manual-events.yml").read_text(encoding="utf-8")
         update = (ROOT / "update-events.yml").read_text(encoding="utf-8")
         verify = (ROOT / "test-integrity.yml").read_text(encoding="utf-8")
-        self.assertIn("permissions:\\n  contents: write\\n  pages: write", monthly)
-        self.assertIn("permissions:\\n  contents: write\\n", update)
-        self.assertIn("permissions:\\n  contents: read\\n", verify)
+        self.assertIn("permissions:\n  contents: write\n  pages: write", monthly)
+        self.assertIn("permissions:\n  contents: write\n", update)
+        self.assertIn("permissions:\n  contents: read\n", verify)
         self.assertNotIn("permissions: write-all", monthly + update + verify)
         self.assertNotIn("pages: write", update + verify)
         self.assertIn("persist-credentials: false", verify)
