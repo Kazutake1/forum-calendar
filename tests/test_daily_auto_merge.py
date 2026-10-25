@@ -106,6 +106,8 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
                     self.pr["user"]["login"] = value
                 elif field == "draft":
                     self.pr["draft"] = value
+                elif field == "head":
+                    self.pr[field]["ref"] = "unapproved-branch"
                 else:
                     self.pr[field]["sha"] = value
                 with patch.object(mod, "api", side_effect=self.fake_api):
