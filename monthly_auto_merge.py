@@ -6,6 +6,7 @@ is needed on healthy runs; a failed check leaves the existing main intact.
 """
 import base64
 import binascii
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import re
@@ -90,6 +91,66 @@ def inspect_pr(base, branch, number):
     return sha, paths
 
 
+def cleanup_stale_monthly_prs():
+    """Close only one old App-owned monthly proposal; preserve data and its audit trail.
+
+    This is a 2-hour safety boundary, beyond the scheduled job's 35-minute
+    runtime. All unknown, recent or competing monthly branches stop the run.
+    """
+    base = os.environ.get("BASE_SHA", "")
+    if (os.environ.get("REPOSITORY") != REPO
+            or not re.fullmatch(r"[0-9a-f]{40}", base)
+            or not os.environ.get("GH_TOKEN")):
+        raise UnsafeToPublish("Invalid monthly cleanup execution context")
+    if shared.current_main() != base:
+        raise UnsafeToPublish("main advanced before stale monthly PR cleanup")
+    opened = shared.api(f"repos/{REPO}/pulls?state=open&base=main&per_page=100")
+    if not isinstance(opened, list) or len(opened) >= 100:
+        raise UnsafeToPublish("Cannot safely inspect all monthly PRs")
+    candidates = [
+        pr for pr in opened
+        if str((pr.get("head") or {}).get("ref", "")).startswith(PREFIX)
+    ]
+    if not candidates:
+        return
+    if len(candidates) != 1:
+        raise UnsafeToPublish("Competing monthly proposals; no automatic cleanup")
+    number = candidates[0].get("number")
+    if type(number) is not int or number < 1:
+        raise UnsafeToPublish("Invalid pending monthly PR number")
+    pr = shared.api(f"repos/{REPO}/pulls/{number}")
+    head = pr.get("head") or {}
+    if not (pr.get("number") == number
+            and pr.get("state") == "open"
+            and pr.get("merged") is False
+            and (pr.get("user") or {}).get("login") == BOT
+            and re.fullmatch(r"automation/monthly-manual/[0-9]+-[0-9]+",
+                             str(head.get("ref", "")))
+            and (head.get("repo") or {}).get("full_name") == REPO
+            and (pr.get("base") or {}).get("ref") == "main"):
+        raise UnsafeToPublish("Pending monthly PR ownership cannot be proven")
+    created_at = pr.get("created_at", "")
+    try:
+        created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            raise ValueError("Missing timestamp timezone")
+    except (AttributeError, ValueError, TypeError) as exc:
+        raise UnsafeToPublish("Unusable monthly PR creation time") from exc
+    if datetime.now(timezone.utc) - created < timedelta(hours=2):
+        raise UnsafeToPublish("Recent monthly PR may still be processing")
+    if shared.current_main() != base:
+        raise UnsafeToPublish("main advanced during monthly PR cleanup")
+    result = shared.api(f"repos/{REPO}/pulls/{number}", method="PATCH",
+                        fields=("state=closed",))
+    if result.get("number") != number or result.get("state") != "closed":
+        raise UnsafeToPublish("GitHub could not confirm stale monthly PR closure")
+    summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+    if summary:
+        with Path(summary).open("a", encoding="utf-8") as out:
+            out.write(f"Closed stale App-owned monthly PR #{number}; no data removed.\\n")
+    print(f"Closed old monthly PR #{number} before proposing a fresh update.")
+
+
 def publish():
     base, branch, number = environment()
     if shared.current_main() != base:
@@ -132,9 +193,12 @@ def publish():
 
 if __name__ == "__main__":
     try:
-        if sys.argv[1:]:
+        if sys.argv[1:] == ["--cleanup-stale"]:
+            cleanup_stale_monthly_prs()
+        elif not sys.argv[1:]:
+            publish()
+        else:
             raise UnsafeToPublish("Unexpected monthly merge argument")
-        publish()
     except (UnsafeToPublish, KeyError, OSError, TypeError,
             ValueError) as exc:
         print(f"Monthly publication failed: {exc}", file=sys.stderr)

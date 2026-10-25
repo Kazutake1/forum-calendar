@@ -85,8 +85,14 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertIn("permissions:\n  contents: read\n  actions: read", monthly)
         self.assertIn("persist-credentials: false", monthly)
         self.assertIn("cron: '10 1 1 * *'", monthly)
+        self.assertIn("workflow_dispatch:", monthly)
+        self.assertNotIn("\\n  push:\\n", monthly,
+                         "Monthly writer must not run when migration PR is merged")
         self.assertIn("run: python monthly_archive_guard.py", monthly)
         self.assertIn("run: python monthly_auto_merge.py", monthly)
+        self.assertIn("run: python monthly_auto_merge.py --cleanup-stale", monthly)
+        self.assertLess(monthly.index("name: Reconcile stale monthly PR"),
+                        monthly.index("name: Open monthly archive PR"))
         self.assertIn("-F draft=false", monthly)
         self.assertIn("GH_CI_READ_TOKEN: ${{ github.token }}", monthly)
         self.assertNotIn("git push origin HEAD:main", monthly)

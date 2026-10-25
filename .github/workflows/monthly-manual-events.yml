@@ -5,12 +5,6 @@ on:
     # First of each month, 10:10 JST (01:10 UTC).
     - cron: '10 1 1 * *'
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'manage_manual_events.py'
-      - 'tests/test_manage_manual_events.py'
-      - '.github/workflows/monthly-manual-events.yml'
 
 permissions:
   contents: read
@@ -122,6 +116,14 @@ jobs:
           private-key: ${{ secrets.FORUM_CALENDAR_APP_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
+
+      - name: Reconcile stale monthly PR from previous runs
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+        run: python monthly_auto_merge.py --cleanup-stale
 
       - name: Open monthly archive PR for verified automatic publication
         id: proposal

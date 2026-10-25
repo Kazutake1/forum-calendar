@@ -1,5 +1,6 @@
 """Monthly GitHub App PR CI safety tests. Purely fabricated responses."""
 import base64
+from datetime import datetime, timedelta, timezone
 import os
 from pathlib import Path
 import tempfile
@@ -62,6 +63,79 @@ class MonthlyMergeTests(unittest.TestCase):
             self.assertIn("sha=" + self.head, kwargs.get("fields"))
             return {"merged": True, "sha": self.merged}
         raise AssertionError(path)
+
+    def test_cleanup_old_verified_bot_pr_allows_next_month_without_merging_old_data(self):
+        old = {**self.pr, "created_at": (
+            datetime.now(timezone.utc) - timedelta(days=32)).isoformat()}
+        requests = []
+        def api(path, *, method=None, fields=(), **kwargs):
+            requests.append((path, method))
+            if path.endswith("/pulls?state=open&base=main&per_page=100"):
+                return [{"number": self.number, "head": {"ref": self.branch}}]
+            if path.endswith(f"/pulls/{self.number}") and method == "PATCH":
+                self.assertEqual(fields, ("state=closed",))
+                return {"number": self.number, "state": "closed"}
+            if path.endswith(f"/pulls/{self.number}"):
+                return old
+            raise AssertionError(path)
+        with patch.object(gate.shared, "current_main",
+                          side_effect=[self.base, self.base]), patch.object(
+                gate.shared, "api", side_effect=api):
+            gate.cleanup_stale_monthly_prs()
+        self.assertIn((f"repos/{gate.REPO}/pulls/{self.number}", "PATCH"), requests)
+        self.assertFalse(any("/merge" in p for p, _ in requests))
+
+    def test_cleanup_rejects_recent_foreign_fork_or_invalid_monthly_pr(self):
+        for problem in ("recent", "author", "fork", "branch", "missing-created"):
+            old = {
+                **self.pr,
+                "head": {**self.pr["head"], "repo": dict(self.pr["head"]["repo"])},
+                "user": dict(self.pr["user"]),
+                "created_at": (
+                    datetime.now(timezone.utc) - timedelta(days=32)).isoformat(),
+            }
+            if problem == "recent":
+                old["created_at"] = datetime.now(timezone.utc).isoformat()
+            elif problem == "author":
+                old["user"]["login"] = "human"
+            elif problem == "fork":
+                old["head"]["repo"]["full_name"] = "untrusted/repo"
+            elif problem == "branch":
+                old["head"]["ref"] = "automation/monthly-manual/unsafe"
+            elif problem == "missing-created":
+                del old["created_at"]
+            mutations = []
+            def api(path, *, method=None, **kwargs):
+                if method:
+                    mutations.append(path)
+                    raise AssertionError("Untrusted monthly PR cannot be closed")
+                if path.endswith("/pulls?state=open&base=main&per_page=100"):
+                    return [{"number": self.number, "head": {"ref": self.branch}}]
+                if path.endswith(f"/pulls/{self.number}"):
+                    return old
+                raise AssertionError(path)
+            with self.subTest(problem=problem), patch.object(
+                    gate.shared, "current_main", return_value=self.base), patch.object(
+                    gate.shared, "api", side_effect=api):
+                with self.assertRaises(gate.UnsafeToPublish):
+                    gate.cleanup_stale_monthly_prs()
+            self.assertEqual(mutations, [])
+
+    def test_cleanup_does_not_close_multiple_or_unreadable_pending_prs(self):
+        for opened in (
+            [{"number": 7, "head": {"ref": self.branch}},
+             {"number": 8, "head": {"ref": "automation/monthly-manual/99-1"}}],
+            [{}] * 100,
+            {"unexpected": "API response"},
+        ):
+            def api(path, **kwargs):
+                self.assertTrue(path.endswith("/pulls?state=open&base=main&per_page=100"))
+                return opened
+            with self.subTest(opened=str(opened)[:60]), patch.object(
+                    gate.shared, "current_main", return_value=self.base), patch.object(
+                    gate.shared, "api", side_effect=api):
+                with self.assertRaises(gate.UnsafeToPublish):
+                    gate.cleanup_stale_monthly_prs()
 
     def test_exact_bot_owned_pr_and_content_are_required(self):
         with patch.object(gate.shared, "api", side_effect=self.api):
