@@ -29,6 +29,15 @@ class WorkflowSupplyChainTests(unittest.TestCase):
                 for action in actual:
                     self.assertRegex(action, r"^[a-z-]+/[a-z-]+@[0-9a-f]{40}$")
 
+    def test_integrity_checks_all_main_pushes_and_pull_requests(self):
+        verify = (ROOT / "test-integrity.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "on:\\n  push:\\n    branches: [main]\\n  pull_request:\\n"
+            "    branches: [main]\\n",
+            verify,
+        )
+        self.assertNotIn("    paths:", verify, "Main pushes must not bypass publication scan")
+
     def test_writer_permissions_remain_explicit_and_limited(self):
         monthly = (ROOT / "monthly-manual-events.yml").read_text(encoding="utf-8")
         update = (ROOT / "update-events.yml").read_text(encoding="utf-8")
