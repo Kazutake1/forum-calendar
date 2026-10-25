@@ -74,7 +74,7 @@ jobs:
           set -euo pipefail
           test ! -e archive/manual_events_9999.json
           mkdir -p archive
-          printf '[]\\n' > archive/manual_events_9999.json
+          printf '%s\n' '[]' > archive/manual_events_9999.json
       - name: Preview GitHub Pages Jekyll build (test only; no deploy)
         uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1; Docker image ghcr.io/actions/jekyll-build-pages:v1.0.13
         with:
