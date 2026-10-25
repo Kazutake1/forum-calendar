@@ -32,8 +32,8 @@ class WorkflowSupplyChainTests(unittest.TestCase):
     def test_integrity_checks_all_main_pushes_and_pull_requests(self):
         verify = (ROOT / "test-integrity.yml").read_text(encoding="utf-8")
         self.assertIn(
-            "on:\\n  push:\\n    branches: [main]\\n  pull_request:\\n"
-            "    branches: [main]\\n",
+            "on:\n  push:\n    branches: [main]\n  pull_request:\n"
+            "    branches: [main]\n",
             verify,
         )
         self.assertNotIn("    paths:", verify, "Main pushes must not bypass publication scan")
