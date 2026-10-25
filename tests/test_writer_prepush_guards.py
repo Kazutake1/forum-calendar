@@ -36,7 +36,8 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
 
     def test_monthly_validated_after_archive_before_commit(self):
         source = workflow("monthly-manual-events.yml")
-        archive = source.index("python manage_manual_events.py")
+        freeze = source.index("name: Freeze monthly reference date (JST)")
+        archive = source.index("python manage_manual_events.py --today")
         data_check = source.index("name: Validate archived records (read-only)")
         self.assertIn("from manage_manual_events import manage", source)
         self.assertIn("dry_run=True", source)
@@ -48,7 +49,9 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
         token = source.index("name: Issue short-lived repository-scoped GitHub App token")
         proposal = source.index("name: Open monthly archive PR for verified automatic publication")
         merge = source.index("name: Verify monthly PR and CI before automatic publication")
-        self.assertTrue(archive < data_check < validation < call < guard < check < token < proposal < merge)
+        self.assertTrue(freeze < archive < data_check < validation < call < guard < check < token < proposal < merge)
+        self.assertIn('MONTHLY_DATE=', source)
+        self.assertIn('date.fromisoformat(os.environ["MONTHLY_DATE"])', source)
         self.assertIn("run: python monthly_archive_guard.py", source)
         self.assertIn("run: python monthly_auto_merge.py", source)
         self.assertNotIn("git push origin HEAD:main", source)

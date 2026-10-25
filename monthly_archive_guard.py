@@ -4,8 +4,9 @@
 This tool validates local monthly housekeeping output against the checked-out
 main commit. No live data is written and no network requests are performed.
 """
-from datetime import datetime, timedelta
+from datetime import date, datetime
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -69,7 +70,9 @@ def git(*args):
 
 def validate_local(root=Path("."), today=None):
     root = Path(root)
-    today = today or datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    if today is None:
+        frozen = os.environ.get("MONTHLY_DATE")
+        today = date.fromisoformat(frozen) if frozen else datetime.now(ZoneInfo("Asia/Tokyo")).date()
     changed = set(git("diff", "--name-only", "HEAD", "--").decode().splitlines())
     changed.update(git("ls-files", "--others", "--exclude-standard").decode().splitlines())
     if not changed or any(not permitted(p) for p in changed):

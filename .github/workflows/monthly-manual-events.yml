@@ -43,12 +43,18 @@ jobs:
             exit 1
           fi
 
+      - name: Freeze monthly reference date (JST)
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'MONTHLY_DATE=%s\n' "$(TZ=Asia/Tokyo date +%F)" >> "$GITHUB_ENV"
+
       - name: Run archive and duplicate review tests
         run: python -m unittest discover -s tests -v
 
       - name: Archive expired records and write review report
         run: |
-          python manage_manual_events.py
+          python manage_manual_events.py --today "$MONTHLY_DATE"
           cat reports/manual-event-review.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validate archived records (read-only)
@@ -56,13 +62,13 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          from datetime import datetime
+          from datetime import date
+          import os
           from pathlib import Path
-          from zoneinfo import ZoneInfo
           from manage_manual_events import manage
 
           result = manage(
-              Path("."), datetime.now(ZoneInfo("Asia/Tokyo")).date(),
+              Path("."), date.fromisoformat(os.environ["MONTHLY_DATE"]),
               dry_run=True,
           )
           if result["moved"] != 0:

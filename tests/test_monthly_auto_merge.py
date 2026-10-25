@@ -169,6 +169,8 @@ class MonthlyMergeTests(unittest.TestCase):
     def test_bad_diff_rejected_without_merge(self):
         for filename, status in (
             ("events.json", "modified"),
+            ("reports/manual-event-review.md", "added"),
+            ("manual_events.json", "added"),
             ("archive/manual_events_2026.json", "removed"),
             ("archive/../events.json", "added"),
         ):

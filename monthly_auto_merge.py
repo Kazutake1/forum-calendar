@@ -80,7 +80,8 @@ def inspect_pr(base, branch, number):
         if (not isinstance(path, str) or not permitted(path)
                 or path in paths
                 or status not in ("modified", "added")
-                or (status == "added" and path == "manual_events.json")):
+                or (status == "added" and path in (
+                    "manual_events.json", "reports/manual-event-review.md"))):
             raise UnsafeToPublish("Unexpected monthly PR file or status")
         paths.add(path)
         local = Path(path)
