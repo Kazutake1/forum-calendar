@@ -18,13 +18,16 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
         data_check = source.index("name: Validate generated event files (read-only)")
         self.assertIn("load_required_events(Path(\"events.json\"))", source)
         self.assertIn('meta["event_count"] != len(events)', source)
-        validation = source.index("name: Verify updated data before committing to main")
+        validation = source.index("name: Verify updated data before proposing PR")
         call = source.index(PREPUSH, validation)
-        commit = source.index("name: Commit updated data")
-        push = source.index("git push", commit)
-        self.assertTrue(first < data_check < validation < call < commit < push)
+        check = source.index("name: Check exact daily output files")
+        token = source.index("name: Issue short-lived repository-scoped GitHub App token")
+        draft = source.index("name: Open review-only daily event Draft PR")
+        self.assertTrue(first < data_check < validation < call < check < token < draft)
         self.assertEqual(source.count(PREPUSH), 1)
-        self.assertIn("git add events.json update-meta.json", source)
+        self.assertIn("git add -- events.json update-meta.json", source)
+        self.assertIn("-F draft=true", source)
+        self.assertNotIn("git push", source)
         self.assertNotIn("continue-on-error: true", source)
 
     def test_monthly_validated_after_archive_before_commit(self):
@@ -124,7 +127,8 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
         for source in (auto, monthly):
             self.assertIn("group: forum-calendar-main-write", source)
             self.assertIn("cancel-in-progress: false", source)
-            self.assertIn("permissions:\n  contents: write", source)
+        self.assertIn("permissions:\n  contents: read", auto)
+        self.assertIn("permissions:\n  contents: write", monthly)
         self.assertIn("run: python update_events_no_ocr.py", auto)
         self.assertIn("run: python -m unittest discover -s tests -v", monthly)
 
