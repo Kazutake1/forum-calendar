@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: forum-calendar-main-write
@@ -16,7 +17,7 @@ jobs:
   update-events:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -85,7 +86,8 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
 
-      - name: Open review-only daily event Draft PR
+      - name: Open daily event PR for verified automatic publication
+        id: proposal
         if: steps.changes.outputs.changed == 'true'
         shell: bash
         env:
@@ -106,12 +108,12 @@ jobs:
               exit 1
             fi
           done
-          # Do not overwrite a pending review or create a competing daily PR.
+          # Never generate competing PRs; a stalled PR requires investigation.
           pending=$(gh api --paginate "repos/${REPOSITORY}/pulls?state=open&base=main&per_page=100" \
             --jq '.[] | select(.head.ref | startswith("automation/daily-events/")) | .number')
           if [[ -n "$pending" ]]; then
-            echo "A daily update PR is still awaiting review; no new PR created." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            echo "An earlier daily PR is still open; refusing a competing update." >&2
+            exit 1
           fi
           current=$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
           if [[ "$current" != "$BASE_SHA" ]]; then
@@ -129,9 +131,26 @@ jobs:
             python -c 'import base64,json,sys; from pathlib import Path; p,b=sys.argv[1:]; print(json.dumps({"branch":b,"content":base64.b64encode(Path(p).read_bytes()).decode("ascii"),"message":"Propose updated "+p+" for review"}))' "$path" "$branch" \
               | gh api "repos/${REPOSITORY}/contents/${path}" -X PUT --input - >/dev/null
           done
-          pr_url=$(gh api "repos/${REPOSITORY}/pulls" -X POST \
+          pr_number=$(gh api "repos/${REPOSITORY}/pulls" -X POST \
             -f head="$branch" -f base=main \
-            -f title="data: daily forum event update (review required)" \
-            -f body="Daily event update proposal. Review events.json and update-meta.json. Never auto-merge. The public calendar is unchanged until human approval." \
-            -F draft=true --jq '.html_url')
-          printf 'Daily event update Draft PR (human approval required): %s\n' "$pr_url" >> "$GITHUB_STEP_SUMMARY"
+            -f title="data: automated daily forum event update (CI required)" \
+            -f body="Automated event update. Only events.json and update-meta.json are allowed; exact-HEAD CI and source must be verified before automatic merge. Unsafe updates halt." \
+            -F draft=false --jq '.number')
+          if [[ ! "$pr_number" =~ ^[0-9]+$ ]]; then
+            echo "Missing PR number; refusing to merge." >&2
+            exit 1
+          fi
+          echo "number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          printf 'Submitted daily update PR #%s; checking CI before publication.\n' "$pr_number" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify exact PR and CI before automatic publication
+        if: steps.changes.outputs.changed == 'true' && steps.proposal.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_CI_READ_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+          PR_NUMBER: ${{ steps.proposal.outputs.number }}
+          PR_BRANCH: ${{ steps.proposal.outputs.branch }}
+        run: python daily_auto_merge.py
