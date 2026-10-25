@@ -283,13 +283,13 @@ def publish():
     summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:
-            handle.write(f"Daily PR #{number} merged at {merged_sha}; checking Pages deployment.\\n")
+            handle.write(f"Daily PR #{number} merged at {merged_sha}; checking Pages deployment.\n")
     wait_for_pages(merged_sha)
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:
             handle.write(
                 f"GitHub Pages deployment succeeded at exact main SHA {merged_sha}. "
-                "Live browser/cache freshness was not independently verified.\\n")
+                "Live browser/cache freshness was not independently verified.\n")
     print(f"Daily PR #{number} merged; exact-SHA GitHub Pages deployment succeeded.")
 
 
