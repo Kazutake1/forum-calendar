@@ -108,7 +108,8 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
         match = re.search(r"(?ms)^          python - <<'PY'\n(.*?)^          PY$", fragment)
         self.assertIsNotNone(match, "Missing executable manual archive validation")
         program = textwrap.dedent(match.group(1))
-        env = dict(os.environ, PYTHONPATH=str(WORKFLOWS.parents[1]))
+        env = dict(os.environ, PYTHONPATH=str(WORKFLOWS.parents[1]),
+                   MONTHLY_DATE="2026-10-25")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             event = {

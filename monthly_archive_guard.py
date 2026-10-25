@@ -4,7 +4,7 @@
 This tool validates local monthly housekeeping output against the checked-out
 main commit. No live data is written and no network requests are performed.
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import json
 import os
 from pathlib import Path
