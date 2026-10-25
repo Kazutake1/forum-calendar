@@ -86,7 +86,7 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertIn("git push origin HEAD:main", monthly)
         self.assertIn("cron: '10 1 1 * *'", monthly)
 
-    def _exercise_submit(self, latest_sha, pending="", fail_put=False, changed=("events.json", "update-meta.json")):
+    def _exercise_submit(self, latest_sha, pending="", fail_put=False, changed=("events.json", "update-meta.json"), bad_blob=False):
         script = shell_step(DAILY.read_text(encoding="utf-8"),
                             "Open daily event PR for verified automatic publication")
         with tempfile.TemporaryDirectory() as tmp:
@@ -104,7 +104,7 @@ class DailyAppPrTests(unittest.TestCase):
                 "  printf '%s\\n' \"$FAKE_MAIN_SHA\"; exit 0\n"
                 "fi\n"
                 "if [[ \"$*\" == *'/contents/'* ]]; then\n"
-                "  cat >/dev/null  # consume piped JSON, preventing broken pipe\n"
+                "  python -c 'import json,re,sys; d=json.load(sys.stdin); assert re.fullmatch(r\"[0-9a-f]{40}\",d.get(\"sha\",\"\")); assert d.get(\"branch\",\"\").startswith(\"automation/daily-events/\"); assert d.get(\"content\")' || exit 23\n"
                 "  if [[ \"$FAKE_FAIL_PUT\" == 1 ]]; then exit 19; fi\n"
                 "fi\n"
                 "if [[ \"$*\" == *'/pulls -X POST'* ]]; then\n"
@@ -116,6 +116,10 @@ class DailyAppPrTests(unittest.TestCase):
             git = root / "git"
             git.write_text(
                 "#!/bin/bash\n"
+                "if [[ \"$1\" == 'rev-parse' ]]; then\n"
+                "  if [[ \"$FAKE_BAD_BLOB\" == 1 ]]; then printf '%s\\n' 'not-a-blob-sha'; else printf '%040d\\n' 7; fi\n"
+                "  exit 0\n"
+                "fi\n"
                 "if [[ \"$*\" == *'events.json'* ]]; then\n"
                 "  [[ \"$FAKE_CHANGED\" != *events.json* ]]; exit $?\n"
                 "elif [[ \"$*\" == *'update-meta.json'* ]]; then\n"
@@ -133,6 +137,7 @@ class DailyAppPrTests(unittest.TestCase):
                        RUN_ID="12345", RUN_ATTEMPT="1",
                        FAKE_MAIN_SHA=latest_sha, FAKE_PENDING=pending,
                        FAKE_FAIL_PUT="1" if fail_put else "0",
+                       FAKE_BAD_BLOB="1" if bad_blob else "0",
                        FAKE_CHANGED=",".join(changed),
                        FAKE_GH_CALLS=str(calls),
                        GITHUB_STEP_SUMMARY=str(summary),
@@ -165,6 +170,13 @@ class DailyAppPrTests(unittest.TestCase):
         code, calls, summary = self._exercise_submit("b" * 40)
         self.assertNotEqual(code, 0)
         self.assertEqual(len(calls), 2)
+        self.assertEqual(summary, "")
+
+    def test_original_blob_sha_missing_or_invalid_prevents_pr(self):
+        code, calls, summary = self._exercise_submit("a" * 40, bad_blob=True)
+        self.assertNotEqual(code, 0)
+        self.assertEqual(len(calls), 3)
+        self.assertFalse(any("/contents/" in c or "/pulls -X POST" in c for c in calls))
         self.assertEqual(summary, "")
 
     def test_fake_github_fail_closed_on_put_error(self):

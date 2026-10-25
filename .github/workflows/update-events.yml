@@ -140,8 +140,15 @@ jobs:
             if git diff --cached --quiet -- "$path"; then
               continue
             fi
-            # Send JSON on stdin so growing event data never appears as a CLI argument.
-            python -c 'import base64,json,sys; from pathlib import Path; p,b=sys.argv[1:]; print(json.dumps({"branch":b,"content":base64.b64encode(Path(p).read_bytes()).decode("ascii"),"message":"Propose updated "+p+" for review"}))' "$path" "$branch" \
+            # Updating an existing file via Contents API requires its ORIGINAL blob SHA.
+            # The checked-out base commit is verified against main above; never use
+            # the newly generated file hash or expose event content as CLI arguments.
+            original_blob=$(git rev-parse --verify "HEAD:${path}")
+            if [[ ! "$original_blob" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Cannot verify original event-file blob; refusing to publish." >&2
+              exit 1
+            fi
+            python -c 'import base64,json,sys; from pathlib import Path; p,b,sha=sys.argv[1:]; print(json.dumps({"branch":b,"sha":sha,"content":base64.b64encode(Path(p).read_bytes()).decode("ascii"),"message":"Propose updated "+p+" for review"}))' "$path" "$branch" "$original_blob" \
               | gh api "repos/${REPOSITORY}/contents/${path}" -X PUT --input - >/dev/null
           done
           pr_number=$(gh api "repos/${REPOSITORY}/pulls" -X POST \
