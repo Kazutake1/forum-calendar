@@ -47,7 +47,7 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
         self.run = {
             "id": 888, "event": "pull_request",
             "head_branch": self.branch, "head_sha": self.head,
-            "path": mod.WORKFLOW + "@refs/pull/999/merge",
+            "path": mod.WORKFLOW,  # GitHub REST returns the bare workflow path
             "actor": {"login": mod.BOT},
             "pull_requests": [{
                 "number": self.number,
@@ -137,6 +137,11 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
         with patch.object(mod, "api", side_effect=tampered):
             with self.assertRaises(mod.UnsafeToPublish):
                 mod.inspect_pr(self.base, self.branch, self.number)
+
+    def test_ci_rejects_wrong_workflow_path(self):
+        self.run["path"] = ".github/workflows/other.yml"
+        with patch.object(mod, "api", side_effect=self.fake_api):
+            self.assertEqual(mod.ci_status(self.branch, self.head, self.number), "pending")
 
     def test_ci_rejects_wrong_actor_sha_branch_or_pr(self):
         for field, value in (("head_sha", "d" * 40),
