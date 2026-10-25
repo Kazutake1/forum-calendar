@@ -68,6 +68,13 @@ jobs:
           assert len(ids)==len(set(ids)), 'Duplicate manual event IDs'
           print(f'Validated {len(auto)} automatic and {len(manual)} manual events')
           PY
+      - name: Add synthetic archive for Pages preview (CI only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e archive/manual_events_9999.json
+          mkdir -p archive
+          printf '[]\\n' > archive/manual_events_9999.json
       - name: Preview GitHub Pages Jekyll build (test only; no deploy)
         uses: actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697 # v1; Docker image ghcr.io/actions/jekyll-build-pages:v1.0.13
         with:
