@@ -56,6 +56,14 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
             }],
             "status": "completed", "conclusion": "success",
         }
+        self.pages_run = {
+            "id": 4567, "event": "dynamic",
+            "name": "pages build and deployment",
+            "path": mod.PAGES_WORKFLOW,
+            "head_sha": self.after, "head_branch": "main",
+            "repository": {"full_name": mod.REPO},
+            "status": "completed", "conclusion": "success",
+        }
         self.env = patch.dict(os.environ, {
             "REPOSITORY": mod.REPO, "BASE_SHA": self.base,
             "PR_BRANCH": self.branch, "PR_NUMBER": str(self.number),
@@ -85,6 +93,10 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
             self.assertIn("event=pull_request", endpoint)
             self.assertIn("head_sha=" + self.head, endpoint)
             return {"workflow_runs": [self.run]}
+        if "/actions/runs?head_sha=" in endpoint:
+            self.assertTrue(read_actions)
+            self.assertIn("head_sha=" + self.after, endpoint)
+            return {"workflow_runs": [self.pages_run]}
         if endpoint.endswith(f"/pulls/{self.number}/merge"):
             self.assertEqual(method, "PUT")
             self.assertIn("sha=" + self.head, fields)
@@ -164,7 +176,57 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
         with patch.object(mod, "api", side_effect=self.fake_api), patch.object(
                 mod, "current_main", side_effect=[self.base, self.base, self.after]):
             mod.publish()
-        self.assertIn("auto-merged daily events PR", Path("summary").read_text())
+        self.assertIn("GitHub Pages deployment succeeded", Path("summary").read_text())
+
+
+    def test_pages_success_matches_real_dynamic_pages_workflow_only(self):
+        with patch.object(mod, "api", side_effect=self.fake_api):
+            self.assertEqual(mod.pages_status(self.after), "success")
+        for field, wrong in (
+            ("head_sha", "d" * 40),
+            ("head_branch", "automation/old"),
+            ("event", "push"),
+            ("name", "Calendar Integrity Tests"),
+            ("path", ".github/workflows/test-integrity.yml"),
+        ):
+            with self.subTest(field=field):
+                before = self.pages_run[field]
+                self.pages_run[field] = wrong
+                with patch.object(mod, "api", side_effect=self.fake_api):
+                    self.assertEqual(mod.pages_status(self.after), "pending")
+                self.pages_run[field] = before
+
+    def test_pages_failure_and_ambiguous_runs_rejected_after_merge(self):
+        original = self.pages_run["conclusion"]
+        self.pages_run["conclusion"] = "failure"
+        with patch.object(mod, "api", side_effect=self.fake_api):
+            with self.assertRaisesRegex(mod.UnsafeToPublish, "after merge"):
+                mod.pages_status(self.after)
+        self.pages_run["conclusion"] = original
+        def duplicate(endpoint, **kwargs):
+            if "/actions/runs?head_sha=" in endpoint:
+                return {"workflow_runs": [self.pages_run, self.pages_run]}
+            return self.fake_api(endpoint, **kwargs)
+        with patch.object(mod, "api", side_effect=duplicate):
+            with self.assertRaisesRegex(mod.UnsafeToPublish, "Ambiguous"):
+                mod.pages_status(self.after)
+
+    def test_no_pages_run_times_out_after_merge_without_claiming_success(self):
+        call_sequence = []
+        def missing_pages(endpoint, **kwargs):
+            call_sequence.append(endpoint)
+            if "/actions/runs?head_sha=" in endpoint:
+                return {"workflow_runs": []}
+            return self.fake_api(endpoint, **kwargs)
+        with patch.object(mod, "api", side_effect=missing_pages), patch.object(
+                mod, "current_main", side_effect=[self.base, self.base, self.after]), patch.object(
+                mod.time, "sleep", return_value=None), patch.object(
+                mod.time, "monotonic", side_effect=[0, 0, 999]):
+            with self.assertRaisesRegex(mod.UnsafeToPublish, "not confirmed after merge"):
+                mod.publish()
+        self.assertTrue(any(x.endswith("/merge") for x in call_sequence))
+        self.assertNotIn("deployment succeeded", Path("summary").read_text())
+
 
     def test_only_current_bot_and_non_draft_pr_can_publish(self):
         for field, value in (("bot", "untrusted-user"), ("draft", True),

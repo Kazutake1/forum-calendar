@@ -24,6 +24,8 @@ WORKFLOW = ".github/workflows/test-integrity.yml"
 ALLOWED = frozenset(("events.json", "update-meta.json"))
 WAIT_SECONDS = 11 * 60
 POLL_SECONDS = 12
+PAGES_WORKFLOW = "dynamic/pages/pages-build-deployment"
+PAGES_WAIT_SECONDS = 9 * 60
 
 
 class UnsafeToPublish(RuntimeError):
@@ -206,6 +208,49 @@ def cleanup_stale_daily_prs():
     print(f"Closed stale daily event PR #{number}; a new verified update may proceed.")
 
 
+
+def pages_status(merged_sha):
+    """Observe the Pages deployment for the exact merged commit, not any newer run.
+
+    The check runs only after merge. Failure cannot undo a previously merged PR.
+    """
+    data = api(
+        f"repos/{REPO}/actions/runs?head_sha={merged_sha}&per_page=100",
+        read_actions=True)
+    if not isinstance(data, dict) or not isinstance(data.get("workflow_runs"), list):
+        raise UnsafeToPublish("Unable to inspect GitHub Pages deployment runs after merge")
+    matches = [
+        run for run in data["workflow_runs"]
+        if (run.get("head_sha") == merged_sha
+            and run.get("head_branch") == "main"
+            and run.get("event") == "dynamic"
+            and run.get("name") == "pages build and deployment"
+            and run.get("path", "").split("@", 1)[0] == PAGES_WORKFLOW
+            and (run.get("repository") or {}).get("full_name") == REPO)
+    ]
+    if len(matches) > 1:
+        raise UnsafeToPublish("Ambiguous Pages deployment runs for the merged SHA")
+    if not matches:
+        return "pending"
+    run = matches[0]
+    if run.get("status") != "completed":
+        return "pending"
+    if run.get("conclusion") != "success":
+        raise UnsafeToPublish("Pages deployment failed after merge; published content may be stale")
+    return "success"
+
+
+def wait_for_pages(merged_sha):
+    deadline = time.monotonic() + PAGES_WAIT_SECONDS
+    while True:
+        if pages_status(merged_sha) == "success":
+            return
+        if time.monotonic() >= deadline:
+            raise UnsafeToPublish(
+                "Pages deployment not confirmed after merge; inspect the live site")
+        time.sleep(POLL_SECONDS)
+
+
 def publish():
     base_sha, branch, number = expected_environment()
     if current_main() != base_sha:
@@ -238,10 +283,14 @@ def publish():
     summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:
+            handle.write(f"Daily PR #{number} merged at {merged_sha}; checking Pages deployment.\\n")
+    wait_for_pages(merged_sha)
+    if summary:
+        with Path(summary).open("a", encoding="utf-8") as handle:
             handle.write(
-                f"Verified CI and auto-merged daily events PR #{number} "
-                f"at {merged_sha}. Check normal GitHub Pages deployment.\n")
-    print(f"Daily event PR #{number} merged after passing exact-head CI.")
+                f"GitHub Pages deployment succeeded at exact main SHA {merged_sha}. "
+                "Live browser/cache freshness was not independently verified.\\n")
+    print(f"Daily PR #{number} merged; exact-SHA GitHub Pages deployment succeeded.")
 
 
 if __name__ == "__main__":
@@ -253,5 +302,5 @@ if __name__ == "__main__":
         else:
             raise UnsafeToPublish("Unexpected command arguments")
     except (UnsafeToPublish, KeyError, OSError, subprocess.TimeoutExpired) as exc:
-        print(f"Daily update stopped without automatic merge: {exc}", file=sys.stderr)
+        print(f"Daily publishing or deployment verification failed: {exc}", file=sys.stderr)
         raise SystemExit(1)
