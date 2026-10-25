@@ -51,6 +51,8 @@ jobs:
                   or type(meta.get("event_count")) is not int
                   or meta["event_count"] != len(events)):
               raise RuntimeError("Generated events and update metadata disagree")
+          if meta.get("status") not in ("ok", "partial"):
+              raise RuntimeError("All event sources failed; preserving last published data")
           print(f"Validated {len(events)} generated events and update metadata")
           PY
 

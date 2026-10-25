@@ -70,16 +70,18 @@ class ScheduledWriterPrepushTests(unittest.TestCase):
             events = [{"date": "2099-10-01", "title": "架空演奏会", "hall": "中ホール"}]
             (root / "events.json").write_text(json.dumps(events), encoding="utf-8")
             meta = root / "update-meta.json"
-            meta.write_text(json.dumps({"event_count": 1}), encoding="utf-8")
+            meta.write_text(json.dumps({"event_count": 1, "status": "ok"}), encoding="utf-8")
             def run_guard():
                 return subprocess.run(
                     [sys.executable, "-c", program], cwd=root, env=env,
                     capture_output=True, text=True, check=False,
                 )
             self.assertEqual(run_guard().returncode, 0, "Valid generated data rejected")
-            meta.write_text(json.dumps({"event_count": 2}), encoding="utf-8")
+            meta.write_text(json.dumps({"event_count": 2, "status": "ok"}), encoding="utf-8")
             self.assertNotEqual(run_guard().returncode, 0, "Metadata mismatch allowed")
-            meta.write_text(json.dumps({"event_count": 1}), encoding="utf-8")
+            meta.write_text(json.dumps({"event_count": 1, "status": "fallback"}), encoding="utf-8")
+            self.assertNotEqual(run_guard().returncode, 0, "Total source outage was published")
+            meta.write_text(json.dumps({"event_count": 1, "status": "ok"}), encoding="utf-8")
             (root / "events.json").write_text("[]", encoding="utf-8")
             self.assertNotEqual(run_guard().returncode, 0, "Empty event dataset allowed")
 
