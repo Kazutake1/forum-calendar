@@ -13,6 +13,7 @@ PYTHON = "actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0"
 NODE = "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1"
 JEKYLL_PREVIEW = "actions/jekyll-build-pages@44a6e6beabd48582f863aeeb6cb2151cc1716697"
 EXPECTED = {
+    "app-smoke-test.yml": ["actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510"],
     "monthly-manual-events.yml": [CHECKOUT, PYTHON],
     "test-integrity.yml": [CHECKOUT, PYTHON, NODE, JEKYLL_PREVIEW],
     "update-events.yml": [CHECKOUT, PYTHON],
