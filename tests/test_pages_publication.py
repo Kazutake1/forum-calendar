@@ -107,6 +107,14 @@ class PagesPublicationBoundaryTests(unittest.TestCase):
                 uncovered.append(output)
         self.assertEqual(uncovered, [], "Previously published non-PWA sources remain exposed")
 
+    def test_future_monthly_archives_are_not_published(self):
+        entries = excludes_from_yaml_subset()
+        self.assertIn("archive/", entries, "Monthly archives must be excluded from Pages")
+        for path in ("archive/manual_events_2026.json",
+                     "archive/manual_events_9999.json"):
+            with self.subTest(path=path):
+                self.assertTrue(excluded_by_jekyll(path, entries))
+
     def test_new_tracked_files_cannot_silently_become_public(self):
         entries = excludes_from_yaml_subset()
         tracked = tracked_paths()
