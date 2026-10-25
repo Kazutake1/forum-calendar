@@ -1,0 +1,77 @@
+name: Verify GitHub App Draft PR (manual, synthetic only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type SYNTHETIC_DRAFT_PR_ONLY to authorize a test PR with fictional data'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forum-calendar-app-smoke
+  cancel-in-progress: false
+
+jobs:
+  app-pr-smoke:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Confirm isolated test scope
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$CONFIRMATION" != 'SYNTHETIC_DRAFT_PR_ONLY' ]]; then
+            echo 'Synthetic test was not explicitly authorized.' >&2
+            exit 1
+          fi
+
+      - name: Issue repository-scoped short-lived App token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FORUM_CALENDAR_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FORUM_CALENDAR_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open synthetic draft PR (never merge)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$REPOSITORY" != 'Kazutake1/forum-calendar' ]]; then
+            echo 'Unexpected repository. Refusing to create test branch.' >&2
+            exit 1
+          fi
+          current=$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$current" != "$BASE_SHA" ]]; then
+            echo 'main changed since workflow start. Test aborted.' >&2
+            exit 1
+          fi
+          branch="automation/app-smoke/${RUN_ID}-${RUN_ATTEMPT}"
+          path="tests/fixtures/app-smoke-${RUN_ID}-${RUN_ATTEMPT}.json"
+          payload=$(printf '{"test":"github-app-pr-smoke","fictional":true,"run_id":"%s"}\n' "$RUN_ID")
+          encoded=$(printf '%s' "$payload" | base64 | tr -d '\n')
+          gh api "repos/${REPOSITORY}/git/refs" -X POST \
+            -f ref="refs/heads/${branch}" -f sha="$BASE_SHA" >/dev/null
+          gh api "repos/${REPOSITORY}/contents/${path}" -X PUT \
+            -f branch="$branch" -f content="$encoded" \
+            -f message='test: synthetic GitHub App draft PR fixture' >/dev/null
+          pr_url=$(gh api "repos/${REPOSITORY}/pulls" -X POST \
+            -f head="$branch" -f base=main \
+            -f title='test(ci): GitHub App synthetic Draft PR - do not merge' \
+            -f body='Fictional test fixture only. Do not merge. No active calendar data is modified.' \
+            -F draft=true --jq '.html_url')
+          printf 'Created synthetic Draft PR (do not merge): %s\n' "$pr_url" >> "$GITHUB_STEP_SUMMARY"
