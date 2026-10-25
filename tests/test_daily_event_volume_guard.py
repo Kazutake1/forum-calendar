@@ -68,7 +68,8 @@ class DailyVolumeGuardTests(unittest.TestCase):
 
     def test_invalid_event_date_is_rejected(self):
         corrupt = json.dumps([
-            {"date": "2099-14-50", "title": "synthetic", "hall": "test"}
+            {"date": "2099-14-50", "title": "synthetic", "hall": "test"},
+            *json.loads(rows(11)),
         ]).encode("utf-8")
         with self.assertRaisesRegex(RuntimeError, "invalid event date"):
             validate_change(rows(12), corrupt, reference_date=date(2098, 12, 1))
