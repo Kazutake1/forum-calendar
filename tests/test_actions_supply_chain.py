@@ -62,7 +62,7 @@ class WorkflowSupplyChainTests(unittest.TestCase):
         self.assertIn("run: python monthly_auto_merge.py", monthly)
         self.assertNotIn("git push origin HEAD:main", monthly)
         self.assertNotIn("pages/builds", monthly)
-        self.assertIn("https://api.github.com/repos/${REPOSITORY}/pages/builds", monthly)
+        self.assertNotIn("pages/builds", monthly)
         self.assertIn("python update_events_no_ocr.py", update)
         self.assertIn("git add -- events.json update-meta.json", update)
         self.assertIn("-F draft=false", update)
