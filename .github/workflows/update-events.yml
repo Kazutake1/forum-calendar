@@ -6,8 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
+  contents: read
 
 concurrency:
   group: forum-calendar-main-write
@@ -15,13 +14,15 @@ concurrency:
 
 jobs:
   update-events:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: true # Required for git push in this trusted main-only writer
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -52,40 +53,86 @@ jobs:
           print(f"Validated {len(events)} generated events and update metadata")
           PY
 
-      - name: Verify updated data before committing to main
+      - name: Verify updated data before proposing PR
         run: python -m unittest discover -s tests -v
 
-      - name: Commit updated data
-        id: persist
+      - name: Check exact daily output files
+        id: changes
+        shell: bash
         run: |
-          git config user.name "forum-calendar-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add events.json update-meta.json
+          set -euo pipefail
+          while IFS= read -r entry; do
+            case "${entry:3}" in
+              events.json|update-meta.json) ;;
+              *) echo "Unexpected changed file; refusing to publish." >&2; exit 1 ;;
+            esac
+          done < <(git status --porcelain --untracked-files=all)
+          git add -- events.json update-meta.json
           if git diff --cached --quiet; then
-            echo "No changes"
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No event-data changes; no PR necessary." >> "$GITHUB_STEP_SUMMARY"
           else
-            git commit -m "Auto-update forum events"
-            git push
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Explicitly request Pages rebuild after bot commit
-        if: steps.persist.outputs.changed == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ github.repository }}
+      - name: Issue short-lived repository-scoped GitHub App token
+        if: steps.changes.outputs.changed == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.FORUM_CALENDAR_APP_CLIENT_ID }}
+          private-key: ${{ secrets.FORUM_CALENDAR_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Open review-only daily event Draft PR
+        if: steps.changes.outputs.changed == 'true'
         shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
-          # A GITHUB_TOKEN push alone does NOT start a GitHub Pages build.
-          response=$(curl --silent --show-error --location --output /tmp/pages-build-response.json \
-            --write-out '%{http_code}' --request POST \
-            --header 'Accept: application/vnd.github+json' \
-            --header "Authorization: Bearer ${GH_TOKEN}" \
-            "https://api.github.com/repos/${REPOSITORY}/pages/builds")
-          cat /tmp/pages-build-response.json
-          if [[ "$response" != "201" ]]; then
-            echo "Pages build request failed (HTTP $response). GitHub data may be newer than the published app." >&2
+          set -euo pipefail
+          if [[ "$REPOSITORY" != "Kazutake1/forum-calendar" ]]; then
+            echo "Unexpected repository; refusing to publish." >&2
             exit 1
           fi
-          echo "Pages build requested for updated automatic event data." >> "$GITHUB_STEP_SUMMARY"
+          for value in "$RUN_ID" "$RUN_ATTEMPT"; do
+            if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+              echo "Invalid workflow execution identifier." >&2
+              exit 1
+            fi
+          done
+          # Do not overwrite a pending review or create a competing daily PR.
+          pending=$(gh api --paginate "repos/${REPOSITORY}/pulls?state=open&base=main&per_page=100" \
+            --jq '.[] | select(.head.ref | startswith("automation/daily-events/")) | .number')
+          if [[ -n "$pending" ]]; then
+            echo "A daily update PR is still awaiting review; no new PR created." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          current=$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$current" != "$BASE_SHA" ]]; then
+            echo "main changed while events were generated; refusing a stale PR." >&2
+            exit 1
+          fi
+          branch="automation/daily-events/${RUN_ID}-${RUN_ATTEMPT}"
+          gh api "repos/${REPOSITORY}/git/refs" -X POST \
+            -f ref="refs/heads/${branch}" -f sha="$BASE_SHA" >/dev/null
+          for path in events.json update-meta.json; do
+            if git diff --cached --quiet -- "$path"; then
+              continue
+            fi
+            encoded=$(base64 < "$path" | tr -d '\n')
+            gh api "repos/${REPOSITORY}/contents/${path}" -X PUT \
+              -f branch="$branch" -f content="$encoded" \
+              -f message="Propose updated ${path} for review" >/dev/null
+          done
+          pr_url=$(gh api "repos/${REPOSITORY}/pulls" -X POST \
+            -f head="$branch" -f base=main \
+            -f title="data: daily forum event update (review required)" \
+            -f body="Daily event update proposal. Review events.json and update-meta.json. Never auto-merge. The public calendar is unchanged until human approval." \
+            -F draft=true --jq '.html_url')
+          printf 'Daily event update Draft PR (human approval required): %s\n' "$pr_url" >> "$GITHUB_STEP_SUMMARY"
