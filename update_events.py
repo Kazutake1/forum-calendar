@@ -23,6 +23,12 @@ JR_WALK_HOME = "https://walking.jr-central.co.jp/index.html"
 JR_INAZAWA = "JR稲沢駅"
 UA = "forum-calendar-auto-updater/2.0 (+GitHub Actions)"
 MAX_DOWNLOAD = 25 * 1024 * 1024
+MAX_REDIRECTS = 5
+JST = timezone(timedelta(hours=9))
+
+
+def jst_today():
+    return datetime.now(JST).date()
 HALLS = {"大ホール", "中ホール", "小ホール"}
 
 VENUE_CORRECTIONS = {
@@ -58,23 +64,35 @@ def is_stale_event_guide_notice(event):
     return "event_guide" in sources and is_non_event_guide_notice(event.get("title",""))
 
 def get(url):
-    u = urlparse(url)
-    if u.scheme != "https" or u.hostname not in ALLOWED_HOSTS:
-        raise RuntimeError(f"許可されていない取得先: {url}")
-    r = requests.get(url, headers={"User-Agent": UA}, timeout=30, stream=True)
-    r.raise_for_status()
-    final_u = urlparse(r.url)
-    if final_u.scheme != "https" or final_u.hostname not in ALLOWED_HOSTS:
-        r.close()
-        raise RuntimeError(f"許可されていないリダイレクト先: {r.url}")
-    data = bytearray()
-    for chunk in r.iter_content(65536):
-        if chunk:
-            data.extend(chunk)
-            if len(data) > MAX_DOWNLOAD:
-                raise RuntimeError("取得ファイルが大きすぎます")
-    r._content = bytes(data)
-    r._content_consumed = True
+    """Validate each HTTPS redirect destination before issuing that request."""
+    for redirects in range(MAX_REDIRECTS + 1):
+        parsed = urlparse(url)
+        if (parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS
+                or parsed.username is not None or parsed.password is not None):
+            raise RuntimeError(f"許可されていない取得先: {url}")
+        r = requests.get(url, headers={"User-Agent": UA}, timeout=30,
+                         stream=True, allow_redirects=False)
+        if r.status_code in (301, 302, 303, 307, 308):
+            destination = r.headers.get("Location")
+            r.close()
+            if not destination or redirects == MAX_REDIRECTS:
+                raise RuntimeError("リダイレクト先が不明または上限超過")
+            url = urljoin(url, destination)
+            continue
+        try:
+            r.raise_for_status()
+            data = bytearray()
+            for chunk in r.iter_content(65536):
+                if chunk:
+                    data.extend(chunk)
+                    if len(data) > MAX_DOWNLOAD:
+                        raise RuntimeError("取得ファイルが大きすぎます")
+            r._content = bytes(data)
+            r._content_consumed = True
+        except Exception:
+            r.close()
+            raise
+        break
     # Some source servers return Japanese HTML as text/html without a charset.
     # requests then defaults to ISO-8859-1, which mojibakes Japanese and breaks
     # title/link matching. Prefer an explicit charset, otherwise use requests'
@@ -213,7 +231,7 @@ def infer_year_months(label,pdf_url):
     if m: return 2018+int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     m=re.search(r"(20\d{2})(\d{2})-(\d{2})",pdf_url)
     if m: return int(m.group(1)),[int(m.group(2)),int(m.group(3))]
-    n=datetime.now(); return n.year,[n.month]
+    n=datetime.now(JST); return n.year,[n.month]
 
 def parse_event_guide(event_guide):
     r=get(event_guide); soup=BeautifulSoup(r.text,"html.parser"); events=[]
@@ -240,7 +258,7 @@ def parse_event_guide(event_guide):
 def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
 
 def expand_dates_from_text(text):
-    today=datetime.now().date(); candidates=[]; fragments=re.split(r"[。\n\r]|(?=開催日時)|(?=開催日)|(?=日時)|(?=とき)",text); labeled=[f for f in fragments if re.search(r"(開催日時|開催日|日時|とき)",f)]
+    today=jst_today(); candidates=[]; fragments=re.split(r"[。\n\r]|(?=開催日時)|(?=開催日)|(?=日時)|(?=とき)",text); labeled=[f for f in fragments if re.search(r"(開催日時|開催日|日時|とき)",f)]
     for frag in labeled[:12]:
         frag=re.split(r"(更新日|掲載日|申込|申し込み|募集|締切|受付期間|販売期間)",frag,maxsplit=1)[0]; full=[]
         for y,m,d in re.findall(r"(20\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日",frag):
@@ -291,11 +309,11 @@ def park_event_from_page(url,source):
         dates=expand_dates_from_text(text)
         time=parse_time_from_text(text)
         venue=PARK_NAME
-    today=datetime.now().date(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
+    today=jst_today(); dates=[d for d in dates if today-timedelta(days=45)<=d<=today+timedelta(days=420)]; price="無料" if "入場無料" in text or "入場料：なし" in text or "入場料:なし" in text else ""
     return [{"date":d.strftime("%Y-%m-%d"),"hall":venue,"venues":[venue],"time":time,"title":title,"price":price,"source":source,"official_url":url,"source_type":"city_event_calendar" if source=="city_event_calendar" else "other","source_url":url,"source_verified":source=="city_event_calendar","event_specific":source=="city_event_calendar","verified_fields":["date","title"]+(["hall"] if venue in text else [])+(["time"] if time else [])+(["price"] if price else [])} for d in dates]
 
 def parse_city_park_events():
-    today=datetime.now().date(); seen=set(); events=[]; pages_ok=0
+    today=jst_today(); seen=set(); events=[]; pages_ok=0
     for offset in range(13):
         y,m=month_add(datetime(today.year,today.month,1),offset); mon=f"{y:04d}{m:02d}"
         for page in range(1,6):
