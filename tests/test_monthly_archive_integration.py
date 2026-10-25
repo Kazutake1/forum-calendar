@@ -9,6 +9,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from manage_manual_events import manage
 from monthly_archive_guard import validate_local
@@ -60,6 +61,17 @@ class MonthlyHistoryIntegrationTests(unittest.TestCase):
         self.assertIn("reports/manual-event-review.md", files)
         self.assertEqual(json.loads(Path("archive/manual_events_2025.json").read_text()),
                          [self.existing])
+
+    def test_frozen_jst_day_is_used_for_report_and_archive(self):
+        manage(self.root, self.day)
+        with patch.dict(os.environ, {"MONTHLY_DATE": "2026-10-25"}):
+            self.assertEqual(validate_local(self.root)[:2], (1, 1))
+        with patch.dict(os.environ, {"MONTHLY_DATE": "2026-10-26"}):
+            with self.assertRaisesRegex(ValueError, "report does not match"):
+                validate_local(self.root)
+        with patch.dict(os.environ, {"MONTHLY_DATE": "not-a-day"}):
+            with self.assertRaises(ValueError):
+                validate_local(self.root)
 
     def test_corrupted_historical_record_is_rejected(self):
         manage(self.root, self.day)
