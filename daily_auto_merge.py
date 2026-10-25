@@ -328,14 +328,20 @@ def publish():
     if result.get("merged") is not True:
         raise UnsafeToPublish("GitHub did not accept the tested PR merge")
     merged_sha = result.get("sha", "")
+    if not isinstance(merged_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", merged_sha):
+        raise UnsafeToPublish("Merge acknowledged but returned an invalid commit SHA")
+    # Mark irreversible state immediately. Errors below are POST-MERGE errors:
+    # they cannot make an already merged PR unmerged.
+    summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+    if summary:
+        with Path(summary).open("a", encoding="utf-8") as handle:
+            handle.write(
+                f"Daily PR #{number} merge acknowledged at {merged_sha}; "
+                "post-merge verification pending.\n")
     if current_main() != merged_sha:
         raise UnsafeToPublish("Merged SHA did not match main; inspect publication")
     verify_merged_commit_parent(base_sha, merged_sha)
     verify_merged_payload(merged_sha)
-    summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
-    if summary:
-        with Path(summary).open("a", encoding="utf-8") as handle:
-            handle.write(f"Daily PR #{number} merged at {merged_sha}; checking Pages deployment.\n")
     wait_for_pages(merged_sha)
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:

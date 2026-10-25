@@ -184,6 +184,22 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
 
 
 
+
+    def test_post_merge_main_divergence_is_reported_as_already_merged(self):
+        endpoints = []
+        def observing(endpoint, **kwargs):
+            endpoints.append(endpoint)
+            return self.fake_api(endpoint, **kwargs)
+        with patch.object(mod, "api", side_effect=observing), patch.object(
+                mod, "current_main", side_effect=[self.base, self.base, "d" * 40]):
+            with self.assertRaisesRegex(mod.UnsafeToPublish, "Merged SHA did not match"):
+                mod.publish()
+        self.assertTrue(any(x.endswith("/merge") for x in endpoints))
+        self.assertFalse(any("/actions/runs?head_sha=" in x for x in endpoints))
+        summary = Path("summary").read_text()
+        self.assertIn("merge acknowledged", summary)
+        self.assertNotIn("deployment succeeded", summary)
+
     def test_merged_commit_contains_exact_validated_local_json(self):
         with patch.object(mod, "api", side_effect=self.fake_api):
             mod.verify_merged_payload(self.after)
@@ -202,6 +218,7 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
                 mod.publish()
         self.assertTrue(any(x.endswith("/merge") for x in calls))
         self.assertFalse(any("/actions/runs?head_sha=" in x for x in calls))
+        self.assertIn("merge acknowledged", Path("summary").read_text())
 
     def test_merged_commit_bad_encoding_or_missing_file_is_rejected(self):
         for payload in (
@@ -249,6 +266,7 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
                 mod.publish()
         self.assertTrue(any(x.endswith("/merge") for x in calls))
         self.assertFalse(any("/actions/runs?head_sha=" in x for x in calls))
+        self.assertIn("merge acknowledged", Path("summary").read_text())
 
 
     def test_pages_success_matches_real_dynamic_pages_workflow_only(self):
