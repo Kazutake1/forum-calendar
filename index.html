@@ -169,8 +169,9 @@ async function moveMonth(delta){
   const outX=delta>0?'-14%':'14%';
   const inX=delta>0?'14%':'-14%';
 
+  let advanced=false, outAnim=null, inAnim=null;
   try{
-    const outAnim=pane.animate(
+    outAnim=pane.animate(
       [
         {transform:'translateX(0)',opacity:1},
         {transform:`translateX(${outX})`,opacity:.18}
@@ -180,12 +181,13 @@ async function moveMonth(delta){
     await outAnim.finished;
 
     view=new Date(view.getFullYear(),view.getMonth()+delta,1);
+    advanced=true;
     selected=null;
     renderCalendar();
 
     outAnim.cancel();
 
-    const inAnim=pane.animate(
+    inAnim=pane.animate(
       [
         {transform:`translateX(${inX})`,opacity:.18},
         {transform:'translateX(0)',opacity:1}
@@ -194,10 +196,14 @@ async function moveMonth(delta){
     );
     await inAnim.finished;
   }catch(e){
-    view=new Date(view.getFullYear(),view.getMonth()+delta,1);
-    selected=null;
-    renderCalendar();
+    if(!advanced){
+      view=new Date(view.getFullYear(),view.getMonth()+delta,1);
+      selected=null;
+      renderCalendar();
+    }
   }finally{
+    if(outAnim)outAnim.cancel();
+    if(inAnim)inAnim.cancel();
     monthAnimating=false;
   }
 }
@@ -281,7 +287,7 @@ async function loadAutoData(){
         if(oe)oe.href=URLS.events;
         if(os)os.href=URLS.schedule;
       }
-      const note=meta.status==='ok'?'自動更新':'前回データを使用';
+      const note=meta.status==='ok'?'公式資料を確認':meta.status==='partial'?'一部の情報源を確認':'前回データを使用';
       let stale=false;
       const successAt=meta.last_successful_forum_at||meta.last_successful_source_at||meta.updated_at||'';
       if(successAt){
@@ -290,7 +296,7 @@ async function loadAutoData(){
       }
       const dataWarning=eventsUsingCache?' ・ イベントデータ：通信できないため保存済みデータを表示':eventsLoaded?'':' ・ イベントデータ取得失敗（表示可能な保存データなし）';
       el.classList.toggle('stale',stale||!eventsLoaded||eventsUsingCache);
-      el.textContent=(stale?`⚠ 文化フォーラム公式情報の正常取得が48時間以上ありません ・ ${when} ・ ${count}件`:`${note}：${when} ・ ${count}件`)+dataWarning;
+      el.textContent=(stale?`⚠ 文化フォーラム公式資料を48時間以上確認できていません ・ ${when} ・ ${count}件`:`${note}：${when} ・ ${count}件`)+dataWarning;
     }
   }
 

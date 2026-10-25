@@ -52,8 +52,21 @@
     }
     const counts = data.events.reduce((n,e) => (n[e.date.slice(5,7)]++, n), {'10':0,'11':0});
     if (counts['10'] !== 28 || counts['11'] !== 30) throw new Error('予定表の月別件数が異なります');
-    const withoutMapped = existing.slice();
+    const withoutMapped = existing.map(row => ({...row}));
     const schedule = data.events.map(raw => ({...raw}));
+    const reviewWarnings = [];
+    const markConflict = (scheduleRow, oldRow, note) => {
+      reviewWarnings.push(scheduleRow.id);
+      if (!scheduleRow.detail_review || scheduleRow.detail_review.status !== '要確認') {
+        scheduleRow.detail_review = {status:'要確認', note,
+          conflicting_source_url:oldRow?.official_url || oldRow?.source_url || ''};
+      }
+      // Keep the original record: uncertain identity is not grounds for deletion.
+      if (oldRow && (!oldRow.detail_review || oldRow.detail_review.status !== '要確認')) {
+        oldRow.detail_review = {status:'要確認', note,
+          conflicting_source_url:pdf};
+      }
+    };
     for (const e of schedule) {
       const expected = hasOwn(manual, e.id) ? {id:manual[e.id]} :
         hasOwn(auto, e.id) ? {date:e.date, title:auto[e.id]} : null;
@@ -61,15 +74,23 @@
       const matching = withoutMapped.map((x,i) => (expected.id
         ? x.id === expected.id : x.date === expected.date && x.title === expected.title && !x.id)
         ? i : -1).filter(i => i !== -1);
-      if (matching.length !== 1) throw new Error(`既存催事の照合に失敗: ${e.id}`);
+      if (matching.length !== 1) {
+        markConflict(e, matching.length ? withoutMapped[matching[0]] : null,
+          '催事予定表の催事と既存登録を一意に照合できません。');
+        continue;
+      }
       const previous = withoutMapped[matching[0]];
       if (hasOwn(manual,e.id) && (previous.date !== e.date ||
           (e.id !== 'schedule-11-14' && previous.hall !== e.hall) ||
           (e.id === 'schedule-10-07' && !String(previous.time||'').includes('16:30')))) {
-        throw new Error(`手動登録と別公演の可能性: ${e.id}`);
+        markConflict(e, previous, '催事予定表と手動登録の開催日・会場・時間に食い違いがあります。');
+        continue;
       }
       if (hasOwn(auto,e.id)) {
-        if (previous.hall !== e.hall) throw new Error(`会場の照合に失敗: ${e.id}`);
+        if (previous.hall !== e.hall) {
+          markConflict(e, previous, '催事予定表と既存公式情報の会場が一致しません。');
+          continue;
+        }
         const a = normalizedTime(previous.time), b = normalizedTime(e.time);
         let cityProof = false;
         try { const url = new URL(previous.source_url || previous.official_url);
@@ -93,10 +114,12 @@
       const starts = normalizedTime(other.time).split(',').filter(Boolean);
       const matchingTime = starts.some(t=>normalizedTime(e.time).split(',').includes(t));
       if (titleMatch || matchingTime) {
-        throw new Error(`未照合の同一公演候補: ${e.id}`);
+        markConflict(e, other, '催事予定表と同一公演の可能性がありますが、同一性を確認できません。');
       }
     }
-    return withoutMapped.concat(schedule);
+    const combined = withoutMapped.concat(schedule);
+    Object.defineProperty(combined, 'reviewWarnings', {value:[...new Set(reviewWarnings)]});
+    return combined;
   }
   window.mergeVerifiedForumSchedule = mergeVerifiedSchedule;
   window.loadVerifiedForumSchedule = async () => {
@@ -110,6 +133,10 @@
       const before = EVENTS;
       EVENTS = merged;
       try { refresh(); } catch (error) { EVENTS = before; throw error; }
+      if (merged.reviewWarnings.length && status) {
+        status.classList.add('stale');
+        status.textContent += ` ・ 催事予定表の照合要確認：${merged.reviewWarnings.length}件`;
+      }
       if (usingCache && status) {
         status.classList.add('stale');
         status.textContent += ' ・ 確認済み予定表：通信できないため保存済みデータを表示';

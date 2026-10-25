@@ -33,6 +33,8 @@ jobs:
         run: node tests/test_manual_merge.cjs
       - name: Verified schedule regression tests
         run: node tests/test_verified_schedule.cjs
+      - name: Interrupted month-navigation regression tests
+        run: node tests/test_month_animation.cjs
       - name: Verified schedule offline regression tests
         run: node tests/test_verified_offline.cjs
       - name: Automatic event offline cache regression tests
