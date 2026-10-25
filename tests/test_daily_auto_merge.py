@@ -97,6 +97,9 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
             self.assertTrue(read_actions)
             self.assertIn("head_sha=" + self.after, endpoint)
             return {"workflow_runs": [self.pages_run]}
+        if endpoint.endswith(f"/git/commits/{self.after}"):
+            self.assertFalse(read_actions)
+            return {"parents": [{"sha": self.base}]}
         if endpoint.endswith(f"/pulls/{self.number}/merge"):
             self.assertEqual(method, "PUT")
             self.assertIn("sha=" + self.head, fields)
@@ -177,6 +180,39 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
                 mod, "current_main", side_effect=[self.base, self.base, self.after]):
             mod.publish()
         self.assertIn("GitHub Pages deployment succeeded", Path("summary").read_text())
+
+
+
+    def test_squash_parent_must_be_original_main_before_reporting_deployment(self):
+        with patch.object(mod, "api", side_effect=self.fake_api):
+            self.assertTrue(mod.verify_merged_commit_parent(self.base, self.after))
+        for parents in (
+            [{"sha": "d" * 40}],
+            [], [{"sha": self.base}, {"sha": self.base}],
+            None,
+        ):
+            with self.subTest(parents=parents):
+                def changed_parent(endpoint, **kwargs):
+                    if endpoint.endswith(f"/git/commits/{self.after}"):
+                        return {"parents": parents}
+                    return self.fake_api(endpoint, **kwargs)
+                with patch.object(mod, "api", side_effect=changed_parent):
+                    with self.assertRaisesRegex(mod.UnsafeToPublish, "across PR merge"):
+                        mod.verify_merged_commit_parent(self.base, self.after)
+
+    def test_merge_race_is_detected_after_real_merge_result_without_undo(self):
+        calls = []
+        def concurrent_main(endpoint, **kwargs):
+            calls.append(endpoint)
+            if endpoint.endswith(f"/git/commits/{self.after}"):
+                return {"parents": [{"sha": "d" * 40}]}
+            return self.fake_api(endpoint, **kwargs)
+        with patch.object(mod, "api", side_effect=concurrent_main), patch.object(
+                mod, "current_main", side_effect=[self.base, self.base, self.after]):
+            with self.assertRaisesRegex(mod.UnsafeToPublish, "across PR merge"):
+                mod.publish()
+        self.assertTrue(any(x.endswith("/merge") for x in calls))
+        self.assertFalse(any("/actions/runs?head_sha=" in x for x in calls))
 
 
     def test_pages_success_matches_real_dynamic_pages_workflow_only(self):

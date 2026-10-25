@@ -209,6 +209,27 @@ def cleanup_stale_daily_prs():
 
 
 
+def verify_merged_commit_parent(original_main_sha, merged_sha):
+    """Detect a main race across REST merge: the REST sha guard protects HEAD only.
+
+    The squash commit must directly descend from the main SHA that our
+    validated event data was generated against. This is POST-merge detection,
+    not a transactional pre-merge guarantee.
+    """
+    if not (re.fullmatch(r"[0-9a-f]{40}", original_main_sha)
+            and re.fullmatch(r"[0-9a-f]{40}", merged_sha)):
+        raise UnsafeToPublish("Invalid main or squash commit identifier")
+    commit = api(f"repos/{REPO}/git/commits/{merged_sha}")
+    parents = commit.get("parents")
+    if (not isinstance(parents, list) or len(parents) != 1
+            or not isinstance(parents[0], dict)
+            or parents[0].get("sha") != original_main_sha):
+        raise UnsafeToPublish(
+            "main changed across PR merge, or merge commit parent cannot be verified; "
+            "inspect published data (already merged)")
+    return True
+
+
 def pages_status(merged_sha):
     """Observe the Pages deployment for the exact merged commit, not any newer run.
 
@@ -280,6 +301,7 @@ def publish():
     merged_sha = result.get("sha", "")
     if current_main() != merged_sha:
         raise UnsafeToPublish("Merged SHA did not match main; inspect publication")
+    verify_merged_commit_parent(base_sha, merged_sha)
     summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:
