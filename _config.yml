@@ -18,6 +18,7 @@ exclude:
   - "README.md"
   - "CHANGELOG.md"
   - "requirements.txt"
+  - "archive/"
   - "reports/"
   - "tests/"
   - "*.py"

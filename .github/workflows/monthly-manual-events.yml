@@ -51,6 +51,25 @@ jobs:
           python manage_manual_events.py
           cat reports/manual-event-review.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Validate archived records (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime
+          from pathlib import Path
+          from zoneinfo import ZoneInfo
+          from manage_manual_events import manage
+
+          result = manage(
+              Path("."), datetime.now(ZoneInfo("Asia/Tokyo")).date(),
+              dry_run=True,
+          )
+          if result["moved"] != 0:
+              raise RuntimeError("Expired manual events are still pending archival")
+          print(f"Validated {result['active']} active manual records and archives")
+          PY
+
       - name: Verify archived data before committing to main
         run: python -m unittest discover -s tests -v
 
