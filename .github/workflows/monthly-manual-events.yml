@@ -51,6 +51,9 @@ jobs:
           python manage_manual_events.py
           cat reports/manual-event-review.md >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify archived data before committing to main
+        run: python -m unittest discover -s tests -v
+
       - name: Commit only manual data, archives, and the report
         id: persist
         shell: bash
