@@ -146,12 +146,12 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
                 self.assertFalse(any(method for _, method in calls))
 
     def test_cleanup_refuses_ambiguous_list_or_moved_main(self):
-        with patch.object(mod, "current_main", return_value="e" * 40), \\
+        with patch.object(mod, "current_main", return_value="e" * 40), \
              patch.object(mod, "api") as mocked:
             with self.assertRaises(mod.UnsafeToPublish):
                 mod.cleanup_stale_daily_prs()
             mocked.assert_not_called()
-        with patch.object(mod, "current_main", return_value=self.base), \\
+        with patch.object(mod, "current_main", return_value=self.base), \
              patch.object(mod, "api", return_value=[
                  {"number": 1, "head": {"ref": self.branch}},
                  {"number": 2, "head": {"ref": "automation/daily-events/2-1"}},

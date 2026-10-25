@@ -202,7 +202,7 @@ def cleanup_stale_daily_prs():
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:
             handle.write(
-                f"Closed stale App-owned daily PR #{number} before a fresh update.\\n")
+                f"Closed stale App-owned daily PR #{number} before a fresh update.\n")
     print(f"Closed stale daily event PR #{number}; a new verified update may proceed.")
 
 
