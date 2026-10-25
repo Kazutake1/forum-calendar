@@ -8,6 +8,7 @@ successful 'Calendar Integrity Tests' pull_request run at the exact head SHA.
 No retries on a failed check; no secret values or source data are logged.
 """
 import base64
+import binascii
 from datetime import datetime, timedelta, timezone
 import re
 import json
@@ -209,6 +210,34 @@ def cleanup_stale_daily_prs():
 
 
 
+def verify_merged_payload(merged_sha):
+    """Check the actual squash commit contains the vetted event bytes.
+
+    Compare GitHub's immutable commit-content endpoint with locally validated
+    files; do not depend on cache state or assume a successful merge result
+    necessarily published the expected JSON.
+    """
+    if not re.fullmatch(r"[0-9a-f]{40}", merged_sha):
+        raise UnsafeToPublish("Invalid merged commit identifier")
+    for path in sorted(ALLOWED):
+        remote = api(
+            f"repos/{REPO}/contents/{path}?ref={merged_sha}")
+        if (remote.get("type") != "file"
+                or remote.get("encoding") != "base64"
+                or not isinstance(remote.get("content"), str)):
+            raise UnsafeToPublish(
+                f"Verified event payload not readable at merged SHA: {path}")
+        try:
+            decoded = base64.b64decode(
+                "".join(remote["content"].split()), validate=True)
+        except (ValueError, binascii.Error) as exc:
+            raise UnsafeToPublish(
+                f"Invalid merged event-data encoding: {path}") from exc
+        if decoded != Path(path).read_bytes():
+            raise UnsafeToPublish(
+                f"Merged event-data differs from validated local file: {path}")
+
+
 def verify_merged_commit_parent(original_main_sha, merged_sha):
     """Detect a main race across REST merge: the REST sha guard protects HEAD only.
 
@@ -302,6 +331,7 @@ def publish():
     if current_main() != merged_sha:
         raise UnsafeToPublish("Merged SHA did not match main; inspect publication")
     verify_merged_commit_parent(base_sha, merged_sha)
+    verify_merged_payload(merged_sha)
     summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
     if summary:
         with Path(summary).open("a", encoding="utf-8") as handle:

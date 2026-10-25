@@ -183,6 +183,42 @@ class DailyAutoMergePolicyTests(unittest.TestCase):
 
 
 
+
+    def test_merged_commit_contains_exact_validated_local_json(self):
+        with patch.object(mod, "api", side_effect=self.fake_api):
+            mod.verify_merged_payload(self.after)
+
+    def test_merged_commit_payload_tamper_is_detected_after_merge(self):
+        calls = []
+        def modified_merged_content(endpoint, **kwargs):
+            calls.append(endpoint)
+            if endpoint.endswith(f"/contents/events.json?ref={self.after}"):
+                return {"type": "file", "encoding": "base64",
+                        "content": base64.b64encode(b'{"fake":true}').decode()}
+            return self.fake_api(endpoint, **kwargs)
+        with patch.object(mod, "api", side_effect=modified_merged_content), patch.object(
+                mod, "current_main", side_effect=[self.base, self.base, self.after]):
+            with self.assertRaisesRegex(mod.UnsafeToPublish, "differs from validated"):
+                mod.publish()
+        self.assertTrue(any(x.endswith("/merge") for x in calls))
+        self.assertFalse(any("/actions/runs?head_sha=" in x for x in calls))
+
+    def test_merged_commit_bad_encoding_or_missing_file_is_rejected(self):
+        for payload in (
+            {"type": "file", "encoding": "base64", "content": "$invalid"},
+            {"type": "file", "encoding": "raw", "content": "not base64"},
+            {"type": "dir", "encoding": "base64", "content": "AA=="},
+        ):
+            with self.subTest(payload=payload):
+                def bad_file(endpoint, **kwargs):
+                    if endpoint.endswith(f"/contents/events.json?ref={self.after}"):
+                        return payload
+                    return self.fake_api(endpoint, **kwargs)
+                with patch.object(mod, "api", side_effect=bad_file):
+                    with self.assertRaises(mod.UnsafeToPublish):
+                        mod.verify_merged_payload(self.after)
+
+
     def test_squash_parent_must_be_original_main_before_reporting_deployment(self):
         with patch.object(mod, "api", side_effect=self.fake_api):
             self.assertTrue(mod.verify_merged_commit_parent(self.base, self.after))
