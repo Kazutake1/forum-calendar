@@ -1,0 +1,23 @@
+# GitHub Pages uses Jekyll 3. Its explicit exclude list REPLACES defaults.
+# Keep the built-in exclusions, then exclude non-PWA maintenance sources.
+# Do not change Jekyll source, destination, theme, or PWA behavior.
+exclude:
+  - ".sass-cache/"
+  - ".jekyll-cache/"
+  - "gemfiles/"
+  - "Gemfile"
+  - "Gemfile.lock"
+  - "node_modules/"
+  - "vendor/bundle/"
+  - "vendor/cache/"
+  - "vendor/gems/"
+  - "vendor/ruby/"
+  - ".github/"
+  - ".gitignore"
+  - "_config.yml"
+  - "README.md"
+  - "CHANGELOG.md"
+  - "requirements.txt"
+  - "reports/"
+  - "tests/"
+  - "*.py"
