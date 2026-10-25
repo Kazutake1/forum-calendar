@@ -120,7 +120,7 @@ def ci_status(branch, head_sha, number):
         if (item.get("event") == "pull_request"
                 and item.get("head_sha") == head_sha
                 and item.get("head_branch") == branch
-                and item.get("path", "").startswith(WORKFLOW + "@")
+                and item.get("path", "").split("@", 1)[0] == WORKFLOW
                 and (item.get("actor") or {}).get("login") == BOT
                 and any(pr.get("number") == number
                         and (pr.get("head") or {}).get("sha") == head_sha
