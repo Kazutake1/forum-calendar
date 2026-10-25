@@ -2,22 +2,6 @@ name: Calendar Integrity Tests
 on:
   push:
     branches: [main]
-    paths:
-      - 'index.html'
-      - 'sw.js'
-      - 'manual-events.js'
-      - 'verified-schedule.js'
-      - 'verified_schedule.json'
-      - 'event-policy.json'
-      - 'event_integrity.py'
-      - 'update_events.py'
-      - 'update_events_no_ocr.py'
-      - 'jr_walking_web.py'
-      - 'manage_manual_events.py'
-      - 'tests/**'
-      - 'events.json'
-      - 'manual_events.json'
-      - '.github/workflows/**'
   pull_request:
     branches: [main]
 permissions:
