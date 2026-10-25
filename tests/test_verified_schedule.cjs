@@ -42,9 +42,17 @@ assert.deepEqual(records('events.json'),originalAuto);
 assert.deepEqual(records('manual_events.json'),originalManual);
 assert.throws(()=>ctx.window.mergeVerifiedForumSchedule(mergedManual,{...verified,source_pdf_sha256:'wrong'}));
 assert.throws(()=>ctx.window.mergeVerifiedForumSchedule(mergedManual,{...verified,events:verified.events.slice(1)}));
-assert.throws(()=>ctx.window.mergeVerifiedForumSchedule(
-  mergedManual.concat([{date:'2026-11-14',hall:'小ホール',title:'未照合の同時刻の別名催事',time:'14:30-15:30'}]),verified),
-  /未照合の同一公演候補/);
+const ambiguous=ctx.window.mergeVerifiedForumSchedule(
+  mergedManual.concat([{date:'2026-11-14',hall:'小ホール',title:'未照合の同時刻の別名催事',time:'14:30-15:30'}]),verified);
+assert.equal(ambiguous.filter(x=>x.source_confirmed===true).length,58);
+assert.equal(ambiguous.find(x=>x.id==='schedule-11-14').detail_review.status,'要確認');
+assert.ok(ambiguous.reviewWarnings.includes('schedule-11-14'));
+const missingManual=ctx.window.mergeVerifiedForumSchedule(
+  mergedManual.filter(x=>x.id!=='manual-20261011-suyama-ballet-turandot'),verified);
+assert.equal(missingManual.filter(x=>x.source_confirmed===true).length,58);
+assert.ok(missingManual.reviewWarnings.includes('schedule-10-07'));
+assert.equal(missingManual.find(x=>x.id==='schedule-10-07').detail_review.status,'要確認');
+assert.equal(missingManual.find(x=>x.id==='schedule-11-15').detail_review,undefined);
 const html = fs.readFileSync(path.join(root,'index.html'),'utf8');
 const renderCode = html.split('\n').find(line=>line.startsWith('function detailsHTML('));
 assert.ok(renderCode);
@@ -63,4 +71,4 @@ assert.ok(!vm.runInContext('detailsHTML(events)',Object.assign(view,{events:[cer
 const inject = {...lecture, detail_review:{status:'要確認',note:'<script>alert(1)</script>'}};
 assert.ok(!vm.runInContext('detailsHTML(events)',Object.assign(view,{events:[inject]})).includes('<script>'));
 assert.ok(vm.runInContext('detailsHTML(events)',view).includes('&lt;script&gt;'));
-console.log('PASS: verified 58, mapped 10, lecture detail only, original inputs preserved, fail-closed data checks');
+console.log('PASS: verified 58, mapped 10, row-local review, original inputs preserved, fail-closed data checks');
