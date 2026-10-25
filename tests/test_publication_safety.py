@@ -36,7 +36,7 @@ SIGNATURES = {
     "OpenAI API key": re.compile(r"sk-(?:proj-)?[A-Za-z0-9_-]{24,}"),
     "AWS access key ID": re.compile(r"AKIA[0-9A-Z]{16}"),
     "private key block": re.compile(
-        r"-----BEGIN\\s+(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
+        r"-----BEGIN\s+(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
     ),
     "privileged credential assignment": re.compile(
         r"""\b(?:SERVICE_ROLE_KEY|CLIENT_SECRET|PRIVATE_API_KEY)\b\s*[:=]\s*["'][^"']{12,}["']""",
@@ -47,7 +47,7 @@ SIGNATURES = {
 
 def tracked_paths():
     result = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)
-    return [Path(p.decode("utf-8", "surrogateescape")) for p in result.split(b"\\0") if p]
+    return [Path(p.decode("utf-8", "surrogateescape")) for p in result.split(b"\0") if p]
 
 
 def unsafe_filename(path):
