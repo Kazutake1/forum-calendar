@@ -210,11 +210,11 @@
     }
     if (!loaded) { stage = lastStage; throw lastError || new Error('手動データを取得できません'); }
     stage = '統合';
-    const merged = merge(EVENTS, manual);
-    const before = EVENTS;
-    EVENTS = merged;
-    stage = '表示';
-    try { refresh(); } catch (error) { EVENTS = before; throw error; }
+    window.applyForumEventOverlay(current => {
+      const merged = merge(current, manual);
+      stage = '表示';
+      return merged;
+    });
     if (usingCache && status) {
       status.classList.add('stale');
       status.textContent += ' ・ 手動登録：通信できないため保存済みデータを表示';
