@@ -80,11 +80,23 @@ class DailyAppPrTests(unittest.TestCase):
         self.assertIn("--paginate", source)
         self.assertIn("Checking CI before publication".lower(), source.lower())
 
-    def test_monthly_writer_is_unchanged(self):
+    def test_monthly_writer_is_ci_gated_without_main_direct_push(self):
         monthly = MONTHLY.read_text(encoding="utf-8")
-        self.assertIn("permissions:\n  contents: write\n  pages: write", monthly)
-        self.assertIn("git push origin HEAD:main", monthly)
+        self.assertIn("permissions:\n  contents: read\n  actions: read", monthly)
+        self.assertIn("persist-credentials: false", monthly)
         self.assertIn("cron: '10 1 1 * *'", monthly)
+        self.assertIn("workflow_dispatch:", monthly)
+        self.assertNotIn(chr(10) + "  push:" + chr(10), monthly,
+                         "Monthly writer must not run when migration PR is merged")
+        self.assertIn("run: python monthly_archive_guard.py", monthly)
+        self.assertIn("run: python monthly_auto_merge.py", monthly)
+        self.assertIn("run: python monthly_auto_merge.py --cleanup-stale", monthly)
+        self.assertLess(monthly.index("name: Reconcile stale monthly PR"),
+                        monthly.index("name: Open monthly archive PR"))
+        self.assertIn("-F draft=false", monthly)
+        self.assertIn("GH_CI_READ_TOKEN: ${{ github.token }}", monthly)
+        self.assertNotIn("git push origin HEAD:main", monthly)
+        self.assertNotIn("pages/builds", monthly)
 
     def _exercise_submit(self, latest_sha, pending="", fail_put=False, changed=("events.json", "update-meta.json"), bad_blob=False):
         script = shell_step(DAILY.read_text(encoding="utf-8"),
