@@ -154,7 +154,12 @@ async function testManualRecovery() {
       EVENTS: publishedAuto.slice(), refresh: () => { refreshed++; },
       linkInfo: () => ({ url: '#', label: 'test' }),
       document: { querySelector: () => status }, fetch: fetcher };
-    vm.runInContext(fs.readFileSync('manual-events.js', 'utf8'), vm.createContext(page));
+    const context = vm.createContext(page);
+    const overlayHelper = indexHtml.split('\n').find(line =>
+      line.startsWith('function applyForumEventOverlay('));
+    assert.ok(overlayHelper, 'Production event overlay transaction is required');
+    vm.runInContext(overlayHelper + '\nwindow.applyForumEventOverlay=applyForumEventOverlay;', context);
+    vm.runInContext(fs.readFileSync('manual-events.js', 'utf8'), context);
     return { page, status, getRefreshed: () => refreshed };
   };
   const good = makePage(async () => response, null);
