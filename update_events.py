@@ -264,7 +264,7 @@ def _guide_section_text(heading):
 def _guide_dates(text):
     dates = set()
     for found in re.finditer(
-        r"(?:(?:令和\\s*(\\d{1,2})年)|(20\\d{2})年)\\s*(\\d{1,2})月\\s*(\\d{1,2})日",
+        r"(?:(?:令和\s*(\d{1,2})年)|(20\d{2})年)\s*(\d{1,2})月\s*(\d{1,2})日",
         text,
     ):
         era, gregorian, month, day = found.groups()
@@ -277,9 +277,9 @@ def _guide_dates(text):
 
 def _guide_time(text):
     """Return (time, unambiguous); never mistake door time for a second show."""
-    text = re.sub(r"[（(]\\s*開場[^）)]*[）)]", "", text)
+    text = re.sub(r"[（(]\s*開場[^）)]*[）)]", "", text)
     found = list(re.finditer(
-        r"(午前|午後)?\\s*(\\d{1,2})時\\s*(?:(\\d{1,2})分)?",
+        r"(午前|午後)?\s*(\d{1,2})時\s*(?:(\d{1,2})分)?",
         text,
     ))
     if not found:
@@ -300,7 +300,7 @@ def _guide_time(text):
     if len(times) == 1:
         return times[0] + "〜", True
     between = text[found[0].end():found[1].start()]
-    if re.fullmatch(r"\\s*[〜～~－-]\\s*", between):
+    if re.fullmatch(r"\s*[〜～~－-]\s*", between):
         return times[0] + "〜" + times[1], True
     return "", False
 
@@ -313,8 +313,8 @@ def parse_event_guide(event_guide):
     today = jst_today()
     for heading in soup.find_all("h2"):
         title = clean(heading.get_text(" ", strip=True))
-        title = re.sub(r"^[〖【][^〗】]{1,60}[〗】]\\s*", "", title)
-        title = re.sub(r"[（(](?:チケット発売中|発売中|販売中|完売御礼|完売)[）)]\\s*$", "", title).strip()
+        title = re.sub(r"^[〖【][^〗】]{1,60}[〗】]\s*", "", title)
+        title = re.sub(r"[（(](?:チケット発売中|発売中|販売中|完売御礼|完売)[）)]\s*$", "", title).strip()
         if not title or is_non_event_guide_notice(title):
             continue
         sections = _guide_section_text(heading)
