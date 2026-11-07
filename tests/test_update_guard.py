@@ -164,6 +164,74 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(source_rank(event, "hall"), 2)
         self.assertEqual(source_rank(event, "time"), 2)
 
+    def test_event_guide_parses_h2_with_labeled_h3_sections(self):
+        html = """
+        <html><body>
+          <h2>〖財団主催事業〗テストコンサート（発売中）</h2>
+          <p>紹介文に別の時間などがあっても、項目の記載を優先する。</p>
+          <h3>開催日</h3><p>令和9年3月22日（月曜日）</p>
+          <h3>時間</h3><p>午後2時（開場：午後1時30分）</p>
+          <h3>開催場所</h3><p>大ホール</p>
+          <h2>〖財団主催事業〗「音楽三昧」合唱団員募集（申込受付中）</h2>
+          <h3>開催日</h3><p>令和9年3月22日</p>
+          <h3>開催場所</h3><p>大ホール</p>
+        </body></html>
+        """
+        response = type("Response", (), {"text": html})()
+        with patch("update_events.get", return_value=response):
+            rows = parse_event_guide("https://www.city.inazawa.aichi.jp/ica/0000002507.html")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["date"], "2027-03-22")
+        self.assertEqual(rows[0]["title"], "テストコンサート")
+        self.assertEqual(rows[0]["hall"], "大ホール")
+        self.assertEqual(rows[0]["time"], "14:00〜")
+        self.assertEqual(rows[0]["source_type"], "city_event_guide")
+        self.assertNotIn("official_url", rows[0])
+        self.assertEqual(source_rank(rows[0], "time"), 2)
+
+    def test_event_guide_skips_ambiguous_multiple_dates_and_performances(self):
+        html = """
+        <html><body>
+          <h2>複数日開催公演</h2>
+          <h3>開催日</h3><ol>
+            <li>令和9年3月21日</li><li>令和9年3月22日</li>
+          </ol>
+          <h3>時間</h3><p>午後2時</p>
+          <h3>開催場所</h3><p>大ホール</p>
+          <h2>複数回開催公演</h2>
+          <h3>開催日</h3><p>令和9年3月22日</p>
+          <h3>時間</h3><ol>
+            <li>午後1時（開場：午後0時30分）</li>
+            <li>午後5時30分（開場：午後5時）</li>
+          </ol>
+          <h3>開催場所</h3><p>大ホール</p>
+          <h2>会場が複数の催事</h2>
+          <h3>開催日</h3><p>令和9年3月22日</p>
+          <h3>時間</h3><p>午後2時</p>
+          <h3>開催場所</h3><p>小ホールと中ホール</p>
+        </body></html>
+        """
+        response = type("Response", (), {"text": html})()
+        with patch("update_events.get", return_value=response):
+            rows = parse_event_guide("https://www.city.inazawa.aichi.jp/ica/0000002507.html")
+        self.assertEqual(rows, [])
+
+    def test_event_guide_preserves_event_specific_official_url(self):
+        current = {
+            "date": "2027-03-22", "title": "テストコンサート",
+            "hall": "大ホール", "time": "14:00〜",
+            "official_url": "https://example.org/performances/concert",
+        }
+        city = {
+            **current, "source_type": "city_event_guide",
+            "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+            "source_verified": True, "verified_fields": ["date", "title", "hall", "time"],
+        }
+        del city["official_url"]
+        merged = dedupe([current, city])
+        self.assertEqual(len(merged), 1)
+        self.assertEqual(merged[0]["official_url"], current["official_url"])
+
     def test_city_event_calendar_uses_city_rank_not_event_official_rank(self):
         event_date = date.today() + timedelta(days=30)
         html = f"""

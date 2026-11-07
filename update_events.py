@@ -6,7 +6,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from event_integrity import same_performance, combine_performance, normalize_title
 from jr_walking_web import parse_jr_inazawa_walks
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 ROOT = Path(__file__).resolve().parent
 EVENTS_FILE = ROOT / "events.json"
@@ -233,26 +233,116 @@ def infer_year_months(label,pdf_url):
     if m: return int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     n=datetime.now(JST); return n.year,[n.month]
 
+def _guide_section_text(heading):
+    """Read labeled sections until the next event h2, not until the next h3."""
+    sections = {"date": [], "time": [], "hall": [], "fallback": []}
+    active = "fallback"
+    for node in heading.next_elements:
+        if getattr(node, "name", None) == "h2":
+            break
+        if getattr(node, "name", None) in ("h3", "h4"):
+            label = clean(node.get_text(" ", strip=True), 80)
+            if label == "開催日":
+                active = "date"
+            elif label in ("時間", "開催時間", "開演時間"):
+                active = "time"
+            elif label in ("開催場所", "会場"):
+                active = "hall"
+            else:
+                active = "fallback"
+            continue
+        if not isinstance(node, NavigableString):
+            continue
+        if node.parent is heading or node.parent.name in ("script", "style", "noscript"):
+            continue
+        value = clean(str(node), 240)
+        if value:
+            sections[active].append(value)
+    return {key: " ".join(value) for key, value in sections.items()}
+
+
+def _guide_dates(text):
+    dates = set()
+    for found in re.finditer(
+        r"(?:(?:令和\\s*(\\d{1,2})年)|(20\\d{2})年)\\s*(\\d{1,2})月\\s*(\\d{1,2})日",
+        text,
+    ):
+        era, gregorian, month, day = found.groups()
+        year = 2018 + int(era) if era else int(gregorian)
+        value = f"{year:04d}-{int(month):02d}-{int(day):02d}"
+        if valid_date(value):
+            dates.add(value)
+    return dates
+
+
+def _guide_time(text):
+    """Return (time, unambiguous); never mistake door time for a second show."""
+    text = re.sub(r"[（(]\\s*開場[^）)]*[）)]", "", text)
+    found = list(re.finditer(
+        r"(午前|午後)?\\s*(\\d{1,2})時\\s*(?:(\\d{1,2})分)?",
+        text,
+    ))
+    if not found:
+        return "", True
+    if len(found) > 2:
+        return "", False
+    times = []
+    for match in found:
+        period, hour, minute = match.groups()
+        h, m = int(hour), int(minute or 0)
+        if (h > 12 if period else h > 23) or m > 59:
+            return "", False
+        if period == "午後" and h < 12:
+            h += 12
+        if period == "午前" and h == 12:
+            h = 0
+        times.append(f"{h:02d}:{m:02d}")
+    if len(times) == 1:
+        return times[0] + "〜", True
+    between = text[found[0].end():found[1].start()]
+    if re.fullmatch(r"\\s*[〜～~－-]\\s*", between):
+        return times[0] + "〜" + times[1], True
+    return "", False
+
+
 def parse_event_guide(event_guide):
-    r=get(event_guide); soup=BeautifulSoup(r.text,"html.parser"); events=[]
-    for h in soup.find_all(["h2","h3","h4"]):
-        title=clean(h.get_text(" ",strip=True))
-        if not title or any(x in title for x in ["開催日","チケット","お問い合わせ","料金","会場"]) or is_non_event_guide_notice(title): continue
-        chunk=[]; cur=h
-        for _ in range(12):
-            cur=cur.find_next()
-            if not cur: break
-            if cur.name in ["h2","h3","h4"] and cur is not h: break
-            t=clean(cur.get_text(" ",strip=True))
-            if t: chunk.append(t)
-        ctx=" ".join(chunk); dm=re.search(r"令和\s*(\d+)年\s*(\d+)月\s*(\d+)日",ctx)
-        if dm: year,month,day=2018+int(dm.group(1)),int(dm.group(2)),int(dm.group(3))
-        else:
-            dm=re.search(r"(20\d{2})年\s*(\d+)月\s*(\d+)日",ctx)
-            if not dm: continue
-            year,month,day=map(int,dm.groups())
-        hall=next((hh for hh in HALLS if hh in ctx),"その他"); tm=re.search(r"(\d{1,2})時(\d{2})分",ctx); time=f"{int(tm.group(1))}:{tm.group(2)}〜" if tm else ""; cleaned=re.sub(r"^[〖【].*?[〗】]\s*","",title)
-        events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide,"source_type":"city_event_guide","source_url":event_guide,"source_verified":True,"verified_fields":["date","title"]+(["hall"] if hall!="その他" else [])+(["time"] if tm else [])})
+    """Conservatively parse one-date, one-hall, one-performance city notices."""
+    response = get(event_guide)
+    soup = BeautifulSoup(response.text, "html.parser")
+    events = []
+    today = jst_today()
+    for heading in soup.find_all("h2"):
+        title = clean(heading.get_text(" ", strip=True))
+        title = re.sub(r"^[〖【][^〗】]{1,60}[〗】]\\s*", "", title)
+        title = re.sub(r"[（(](?:チケット発売中|発売中|販売中|完売御礼|完売)[）)]\\s*$", "", title).strip()
+        if not title or is_non_event_guide_notice(title):
+            continue
+        sections = _guide_section_text(heading)
+        date_text = sections["date"] or sections["fallback"]
+        hall_text = sections["hall"] or sections["fallback"]
+        time_text = sections["time"] or sections["fallback"]
+        dates = _guide_dates(date_text)
+        halls = [hall for hall in sorted(HALLS) if hall in hall_text]
+        # Several days, several halls and several start times require event-level
+        # matching; never turn one of those into an invented single performance.
+        if len(dates) != 1 or len(halls) != 1:
+            continue
+        event_date = next(iter(dates))
+        event_day = datetime.strptime(event_date, "%Y-%m-%d").date()
+        if not today - timedelta(days=45) <= event_day <= today + timedelta(days=420):
+            continue
+        time, unambiguous = _guide_time(time_text)
+        if not unambiguous:
+            continue
+        events.append({
+            "date": event_date, "hall": halls[0], "time": time,
+            "title": title, "price": "", "source": "event_guide",
+            # Keep the published event's specific official_url intact; this
+            # listing page is provenance, not an individual organizer link.
+            "source_type": "city_event_guide", "source_url": event_guide,
+            "source_verified": True,
+            "verified_fields": ["date", "title", "hall"] + (["time"] if time else []),
+        })
     return dedupe(events)
 
 def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
@@ -375,9 +465,19 @@ def main():
     try: schedule_page,mode=discover_page("schedule",schedule_page_pref); notes.append(f"催事予定表URL: {mode} {schedule_page}")
     except Exception as e: notes.append(f"催事予定表URL探索失敗: {clean(e,180)}")
     try:
-        guide=parse_event_guide(event_guide)
+        candidates=parse_event_guide(event_guide)
+        withheld=0
+        for candidate in candidates:
+            same_slot=[saved for saved in old if saved.get("date")==candidate["date"] and
+                       candidate["hall"] in (saved.get("venues") or [saved.get("hall")])]
+            if same_slot and not any(same_performance(saved,candidate) for saved in same_slot):
+                withheld+=1
+            else:
+                guide.append(candidate)
+        if withheld:
+            notes.append(f"公式イベント案内: 既存の同日同会場イベントと照合できない{withheld}件を保留")
         if guide: source_success=True; forum_success=True; notes.append(f"公式イベント案内 {len(guide)}件")
-        else: notes.append("公式イベント案内: 構造化イベント0件")
+        else: notes.append("公式イベント案内: 確実に統合できる構造化イベント0件")
     except Exception as e: notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
     try:
         label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content; year,months=infer_year_months(label,pdf_url)
