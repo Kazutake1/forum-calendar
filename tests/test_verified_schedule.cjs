@@ -36,7 +36,7 @@ assert.equal(after.find(x=>x.id==='schedule-11-16').detail_review,undefined);
 // A newer verified official listing wins, while the pinned schedule supplies
 // a missing end time and its raw source rows are never rewritten.
 const officialGuideUrl = 'https://www.city.inazawa.aichi.jp/ica/0000002507.html';
-const improvedAuto = originalAuto.map(e => {
+const withOfficialGuide = rows => rows.map(e => {
   const replacements = {
     '2026-11-01': ['KAZUYOSHI SAITO LIVE TOUR2026"日常 Days"', '17:00〜'],
     '2026-11-05': ['モーニングクラシックVol.3', '10:00〜'],
@@ -44,10 +44,11 @@ const improvedAuto = originalAuto.map(e => {
   };
   const replacement = replacements[e.date];
   if (!replacement) return e;
-  return {...e, previous_titles:[e.title], title:replacement[0], time:replacement[1],
+  return {...e, previous_titles:[...new Set([...(e.previous_titles||[]),e.title])], title:replacement[0], time:replacement[1],
     source_verified:true, source_type:'city_event_guide', source_url:officialGuideUrl,
     verified_fields:['date','title','hall','time']};
 });
+const improvedAuto=withOfficialGuide(originalAuto);
 const improved = ctx.window.mergeVerifiedForumSchedule(
   ctx.window.mergeForumEvents(improvedAuto,originalManual), verified);
 assert.equal(improved.length, after.length);
@@ -62,6 +63,10 @@ assert.equal(improvedConcert.detail_review,undefined);
 assert.equal(improved.find(e=>e.id==='schedule-11-04').title,'モーニングクラシックVol.3');
 assert.equal(improved.find(e=>e.id==='schedule-11-04').time,'10:00-11:30');
 assert.equal(improved.find(e=>e.id==='schedule-11-01').source_type,'city_event_guide');
+const repeatedGuide=ctx.window.mergeVerifiedForumSchedule(
+  ctx.window.mergeForumEvents(withOfficialGuide(improvedAuto),originalManual),verified);
+assert.equal(repeatedGuide.length,improved.length,'Repeated guide fixtures retain reviewed old-title aliases');
+assert.equal(repeatedGuide.reviewWarnings.length,0);
 const adjustedStart = improvedAuto.map(e=>e.date==='2026-11-15' ? {...e,time:'13:00〜'} : e);
 const officialTimeWins = ctx.window.mergeVerifiedForumSchedule(
   ctx.window.mergeForumEvents(adjustedStart,originalManual), verified);
@@ -125,8 +130,9 @@ assert.equal(hallResult.find(e=>e.id==='schedule-11-16').hall,'大ホール');
 assert.equal(hallResult.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
 assert.deepEqual(records('verified_schedule.json'),verified);
 
-const officialMismatch = mergedManual.map(x=>x.title==='音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」'
-  ? {...x,source_verified:true,source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html'} : x);
+const officialMismatch = mergedManual.map(x=>x.date==='2026-11-15'&&x.hall==='中ホール'
+  ? {...x,time:'16:00〜',field_sources:{},source_type:'city_official',source_verified:true,
+     source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html'} : x);
 assert.equal(ctx.window.mergeVerifiedForumSchedule(officialMismatch,verified)
   .find(x=>x.id==='schedule-11-16').detail_review.status,'要確認');
 assert.equal(after.some(x=>x.id==='manual-20261011-suyama-ballet-turandot'),false);
