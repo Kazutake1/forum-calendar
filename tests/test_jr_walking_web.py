@@ -62,10 +62,10 @@ class JrWalkingWebTests(unittest.TestCase):
         self.assertTrue(event["source_verified"])
         self.assertTrue(event["event_specific"])
         self.assertEqual(event["verified_fields"], ["date", "title", "hall", "time"])
-        self.assertEqual(source_rank(event, "date"), 3)
-        self.assertEqual(source_rank(event, "title"), 3)
-        self.assertEqual(source_rank(event, "hall"), 3)
-        self.assertEqual(source_rank(event, "time"), 3)
+        self.assertEqual(source_rank(event, "date"), 4)
+        self.assertEqual(source_rank(event, "title"), 4)
+        self.assertEqual(source_rank(event, "hall"), 4)
+        self.assertEqual(source_rank(event, "time"), 4)
         self.assertEqual(source_rank(event, "price"), 0)
 
     def test_invalid_detail_path_is_not_accepted(self):

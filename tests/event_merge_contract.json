@@ -140,5 +140,169 @@
       ],
       "price": "市価格"
     }
+  },
+  {
+    "name": "city_event_guide-over-city_schedule-reverse-False",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:30／開演18:00",
+        "source_type": "city_schedule",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "source_verified": true,
+        "event_specific": false,
+        "verified_fields": [
+          "time"
+        ]
+      }
+    ],
+    "manual": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:00／開演18:00",
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "source_verified": true,
+        "event_specific": false,
+        "verified_fields": [
+          "time"
+        ],
+        "id": "contract-city_event_guide-False"
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開場17:00／開演18:00"
+      ],
+      "time_source": "city_event_guide"
+    }
+  },
+  {
+    "name": "city_event_guide-over-city_schedule-reverse-True",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:00／開演18:00",
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "source_verified": true,
+        "event_specific": false,
+        "verified_fields": [
+          "time"
+        ]
+      }
+    ],
+    "manual": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:30／開演18:00",
+        "source_type": "city_schedule",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "source_verified": true,
+        "event_specific": false,
+        "verified_fields": [
+          "time"
+        ],
+        "id": "contract-city_event_guide-True"
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開場17:00／開演18:00"
+      ],
+      "time_source": "city_event_guide"
+    }
+  },
+  {
+    "name": "event_official-over-city_event_guide-reverse-False",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:30／開演18:00",
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "source_verified": true,
+        "event_specific": false,
+        "verified_fields": [
+          "time"
+        ]
+      }
+    ],
+    "manual": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:00／開演18:00",
+        "source_type": "event_official",
+        "source_url": "https://example.org/event",
+        "source_verified": true,
+        "event_specific": true,
+        "verified_fields": [
+          "time"
+        ],
+        "id": "contract-event_official-False"
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開場17:00／開演18:00"
+      ],
+      "time_source": "event_official"
+    }
+  },
+  {
+    "name": "event_official-over-city_event_guide-reverse-True",
+    "base": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:00／開演18:00",
+        "source_type": "event_official",
+        "source_url": "https://example.org/event",
+        "source_verified": true,
+        "event_specific": true,
+        "verified_fields": [
+          "time"
+        ]
+      }
+    ],
+    "manual": [
+      {
+        "date": "2026-10-31",
+        "title": "優先順位検証公演",
+        "hall": "中ホール",
+        "time": "開場17:30／開演18:00",
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "source_verified": true,
+        "event_specific": false,
+        "verified_fields": [
+          "time"
+        ],
+        "id": "contract-event_official-True"
+      }
+    ],
+    "expected": {
+      "count": 1,
+      "times": [
+        "開場17:00／開演18:00"
+      ],
+      "time_source": "event_official"
+    }
   }
 ]

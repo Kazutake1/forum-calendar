@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -47,7 +48,10 @@ def _group_source_types(name: str) -> frozenset[str]:
             return frozenset(group["source_types"])
     raise RuntimeError(f"イベント出典ポリシーに{name}グループがありません")
 
-CITY_SOURCE_TYPES = _group_source_types("city_official")
+CITY_SOURCE_TYPES = frozenset(
+    kind for group in SOURCE_GROUPS if CITY_HOST in group.get("hosts", [])
+    for kind in group["source_types"]
+)
 
 
 def normalize_title(value: object) -> str:
@@ -236,6 +240,26 @@ def combine_performance(current: dict, incoming: dict) -> dict:
     if merged.get("hall") != current.get("hall"):
         merged["venues"]=incoming.get("venues") or [incoming["hall"]]
     if evidence: merged["field_sources"]=evidence
+    history = list(current.get("official_change_history") or [])
+    for change in incoming.get("official_change_history") or []:
+        if change not in history:
+            history.append(change)
+    for field in FIELDS:
+        old, new = current.get(field), merged.get(field)
+        proof = field_provenance(merged, field)
+        if (not old or not new or old == new or source_rank(incoming, field) < 2
+                or source_rank(incoming, field) < source_rank(current, field)):
+            continue
+        if not any(change.get("field") == field and change.get("previous") == old
+                   and change.get("official") == new and change.get("source_url") == proof.get("source_url")
+                   for change in history):
+            history.append({"field": field, "previous": old, "official": new,
+                            "source_url": proof.get("source_url", ""),
+                            "checked_at": incoming.get("checked_at") or datetime.now(timezone.utc).isoformat()})
+        if field == "title":
+            merged["previous_titles"] = list(dict.fromkeys([
+                *(current.get("previous_titles") or []), *(incoming.get("previous_titles") or []), old]))
+    if history: merged["official_change_history"] = history
     if conflicts: merged["review_conflicts"]=conflicts
     for key in ("event_id","performance_id"):
         if not merged.get(key) and incoming.get(key): merged[key]=incoming[key]

@@ -1,4 +1,4 @@
-const CACHE='forum-calendar-v9-3-7-r3';
+const CACHE='forum-calendar-v9-3-7-r4';
 const AUTO_DATA='./events.json';
 const POLICY_DATA='./event-policy.json';
 const MANUAL_DATA='./manual_events.json';
@@ -35,7 +35,7 @@ const validPolicyData=data=>{
      data.x_hosts.some(host=>!validHostName(host))||
      !uniqueNonEmptyStrings(data.merge_fields)||
      !uniqueNonEmptyStrings(data.manual_source_types)||
-     !Array.isArray(data.source_groups)||data.source_groups.length!==3)return false;
+     !Array.isArray(data.source_groups)||data.source_groups.length!==4)return false;
 
   const expectedMergeFields=['date','title','hall','time','price','official_url'];
   if(data.merge_fields.length!==expectedMergeFields.length||
@@ -57,13 +57,16 @@ const validPolicyData=data=>{
   }
 
   const official=groups.get('event_specific_official');
+  const guide=groups.get('city_event_guide');
   const city=groups.get('city_official');
   const x=groups.get('x');
-  if(!official||official.rank!==3||official.require_event_specific!==true||
+  if(!official||official.rank!==4||official.require_event_specific!==true||
      !Array.isArray(official.forbidden_hosts)||!data.x_hosts.every(host=>official.forbidden_hosts.includes(host))||
      !['event_official','organizer','promoter'].every(type=>official.source_types.includes(type)))return false;
+  if(!guide||guide.rank!==3||!Array.isArray(guide.hosts)||!guide.hosts.includes(data.city_host)||
+     !['city_event_guide','event_guide'].every(type=>guide.source_types.includes(type)))return false;
   if(!city||city.rank!==2||!Array.isArray(city.hosts)||!city.hosts.includes(data.city_host)||
-     !['city_official','city_schedule','city_event_guide','event_guide','city_event_calendar']
+     !['city_official','city_schedule','city_event_calendar']
        .every(type=>city.source_types.includes(type)))return false;
   if(!x||x.rank!==1||!Array.isArray(x.hosts)||!data.x_hosts.every(host=>x.hosts.includes(host))||
      !x.source_types.includes('x'))return false;
@@ -77,8 +80,9 @@ const validManualData=(data,policy)=>{
   if(!validPolicyData(policy)||!Array.isArray(data))return false;
   const ids=new Set(),allowedTypes=new Set(policy.manual_source_types),xHosts=new Set(policy.x_hosts);
   const mergeFields=new Set(policy.merge_fields);
-  const cityGroup=policy.source_groups.find(group=>group.name==='city_official');
-  const cityTypes=new Set(cityGroup.source_types);
+  const cityTypes=new Set(policy.source_groups
+    .filter(group=>Array.isArray(group.hosts)&&group.hosts.includes(policy.city_host))
+    .flatMap(group=>group.source_types));
   return data.every(event=>{
     if(!event||typeof event!=='object'||Array.isArray(event)||typeof event.id!=='string'||!event.id.trim()||
        ids.has(event.id)||!validDate(event.date)||typeof event.title!=='string'||event.title.trim().length<2||

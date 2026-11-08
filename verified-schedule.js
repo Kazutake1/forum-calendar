@@ -5,6 +5,9 @@
   if(!POLICY||POLICY.schema_version!==1||typeof POLICY.city_host!=='string')
     throw new Error('イベント出典ポリシーの形式が不正です');
   const CITY_HOST=POLICY.city_host;
+  const SOURCES=window.FORUM_EVENT_SOURCES;
+  if(!SOURCES)throw new Error('共通の出典判定を読み込めません');
+  const {fieldEvidence,sourceRank,timeParts,recordOfficialChanges}=SOURCES;
   const pdf = 'https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf';
   const sha = 'c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8';
   // Each mapping is an individually reviewed identity, not a fuzzy title match.
@@ -72,7 +75,9 @@
         hasOwn(auto, e.id) ? {date:e.date, title:auto[e.id]} : null;
       if (!expected) continue;
       const matching = withoutMapped.map((x,i) => (expected.id
-        ? x.id === expected.id : x.date === expected.date && x.title === expected.title && !x.id)
+        ? x.id === expected.id : x.date === expected.date && !x.id &&
+          (x.title === expected.title ||
+           (Array.isArray(x.previous_titles) && x.previous_titles.includes(expected.title))))
         ? i : -1).filter(i => i !== -1);
       if (matching.length !== 1) {
         markConflict(e, matching.length ? withoutMapped[matching[0]] : null,
@@ -80,26 +85,85 @@
         continue;
       }
       const previous = withoutMapped[matching[0]];
-      if (hasOwn(manual,e.id) && (previous.date !== e.date ||
-          (e.id !== 'schedule-11-14' && previous.hall !== e.hall) ||
-          (e.id === 'schedule-10-07' && !String(previous.time||'').includes('16:30')))) {
-        markConflict(e, previous, '催事予定表と手動登録の開催日・会場・時間に食い違いがあります。');
+      // Only individually mapped identities may inherit stronger evidence.
+      // A URL or a top-level source label never certifies another field.
+      if (previous.date !== e.date) {
+        markConflict(e, previous, '催事予定表と既存登録の開催日が一致しません。');
         continue;
       }
-      if (hasOwn(auto,e.id)) {
-        if (previous.hall !== e.hall) {
-          markConflict(e, previous, '催事予定表と既存公式情報の会場が一致しません。');
-          continue;
+      const original = {...e};
+      const scheduleProof = {...e,source_verified:true,
+        verified_fields:['date','title','hall','time']};
+      const stronger = field => sourceRank(previous,field)>sourceRank(scheduleProof,field);
+      if ((previous.hall !== e.hall && e.id !== 'schedule-11-14' && !stronger('hall')) ||
+          (e.id === 'schedule-10-07' && !String(previous.time||'').includes('16:30'))) {
+        markConflict(e, previous, '催事予定表と既存登録の会場・時間に食い違いがあります。');
+        continue;
+      }
+      e.field_sources = Object.fromEntries(['date','title','hall','time']
+        .map(field=>[field,fieldEvidence(scheduleProof,field)]));
+      let promoted = false;
+      for (const field of ['title','hall','time']) {
+        if (!previous[field] || !stronger(field)) continue;
+        promoted = true;
+        e[field] = previous[field];
+        e.field_sources[field] = fieldEvidence(previous,field);
+        if (field === 'hall') {
+          e.venues = [e.hall];
+          if(e.hall!==original.hall)e.detail_review={status:'要確認',
+            note:'確認済み公式情報の会場'+e.hall+'を優先。催事予定表の会場は'+original.hall+'。',
+            conflicting_source_url:pdf};
         }
-        const a = normalizedTime(previous.time), b = normalizedTime(e.time);
-        let cityProof = false;
-        try { const url = new URL(previous.source_url || previous.official_url);
-          cityProof = previous.source_verified === true && url.protocol === 'https:' &&
-            url.hostname === CITY_HOST; }
-        catch (_) { /* Historical entries without a source cannot establish an official discrepancy. */ }
-        if (cityProof && a && b && a !== b) {
-          e.detail_review = {status:'要確認', note:`催事予定表の時間は${e.time}。市公式イベント案内は${previous.time}。`,
-            conflicting_source_url:previous.official_url || previous.source_url || ''};
+        if (field === 'time') {
+          const official = timeParts(previous.time), scheduled = timeParts(original.time);
+          const rangeEnd = value => {
+            const text=String(value).normalize('NFKC');
+            const clock=text.match(/(?:終演|終了)\s*(\d{1,2}:\d{2})/)?.[1] ||
+              text.match(/(?:^|開演|開始)\s*\d{1,2}:\d{2}\s*[-〜～~–]\s*(\d{1,2}:\d{2})/)?.[1] || '';
+            return clock ? clock.padStart(5,'0') : '';
+          };
+          const officialEnd = rangeEnd(previous.time), scheduleEnd = rangeEnd(original.time);
+          const sameStart = official.starts.length===1 && scheduled.starts.length===1 &&
+            official.starts[0]===scheduled.starts[0];
+          const doorsOnly=official.starts.length===0&&official.doors.length===1&&scheduled.starts.length===1;
+          if (doorsOnly) {
+            const chosenEnd=officialEnd||scheduleEnd;
+            e.time='開場'+official.doors[0]+'／開演'+scheduled.starts[0]+(chosenEnd?'（終演'+chosenEnd+'）':'');
+            e.time_supplement={start_time:scheduled.starts[0],
+              ...(!officialEnd&&scheduleEnd?{end_time:scheduleEnd}:{}),...fieldEvidence(scheduleProof,'time')};
+          } else if (sameStart && !officialEnd && scheduleEnd) {
+            e.time = official.doors.length ? previous.time+'（終演'+scheduleEnd+'）' : original.time;
+            e.time_supplement = {end_time:scheduleEnd, ...fieldEvidence(scheduleProof,'time')};
+          }
+          if ((!sameStart&&!doorsOnly) || (officialEnd && scheduleEnd && officialEnd!==scheduleEnd)) {
+            e.detail_review = {status:'要確認',
+              note:(e.hall!==original.hall?'確認済み公式情報の会場'+e.hall+'を優先。催事予定表の会場は'+original.hall+'。':'')+
+                '確認済み公式情報の時刻'+previous.time+'を優先。催事予定表の時刻は'+original.time+'。',
+              conflicting_source_url:pdf};
+          }
+        }
+      }
+      if (promoted) {
+        const proofField = ['time','title','hall'].find(field=>previous[field]&&stronger(field));
+        const proof = fieldEvidence(previous,proofField);
+        e.source_type = proof.source_type;
+        e.source_url = proof.source_url;
+        e.source_verified = true;
+        // Never replace an event-specific link with the shared city listing.
+        e.official_url = previous.official_url || proof.source_url;
+        if (proof.source_type === 'city_event_guide') e.official_guide_evidence_url = proof.source_url;
+        e.official_change_history = [...(previous.official_change_history||[])];
+        e.previous_titles = [...(previous.previous_titles||[])];
+        recordOfficialChanges(e, original, ['title','hall','time']);
+      } else if (hasOwn(auto,e.id)) {
+        const a=normalizedTime(previous.time), b=normalizedTime(e.time);
+        let cityProof=false;
+        try { const url=new URL(previous.source_url||previous.official_url);
+          cityProof=previous.source_verified===true&&url.protocol==='https:'&&url.hostname===CITY_HOST;
+        } catch (_) { /* A historical URL alone is not verified evidence. */ }
+        if(cityProof&&a&&b&&a!==b) {
+          e.detail_review={status:'要確認',note:`催事予定表の時間は${e.time}。市公式イベント案内は${previous.time}。`,
+            conflicting_source_url:previous.official_url||previous.source_url||''};
         }
       }
       withoutMapped.splice(matching[0], 1);

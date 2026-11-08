@@ -5,7 +5,7 @@ import unittest
 from update_events import dedupe
 
 from event_integrity import (
-    city_verified, combine_performance, same_performance, time_parts, source_rank,
+    city_verified, combine_performance, same_performance, time_parts, source_rank, field_provenance,
 )
 
 
@@ -80,7 +80,7 @@ class IdentityAndEvidenceTests(unittest.TestCase):
         base=event('開演18:00',source_type='x',source_url='https://x.com/a/status/1',source_verified=True,verified_fields=['time'])
         city=event('開演18:00',source_type='city_schedule',source_url='https://www.city.inazawa.aichi.jp/ica/0000002507.html',source_verified=True,verified_fields=['time'])
         official=event('開演18:00',source_type='event_official',source_url='https://example.org/events/1',source_verified=True,event_specific=True,verified_fields=['time'])
-        self.assertEqual([source_rank(x,'time') for x in (base,city,official)],[1,2,3])
+        self.assertEqual([source_rank(x,'time') for x in (base,city,official)],[1,2,4])
         merged=combine_performance(base,city)
         self.assertEqual(merged['field_sources']['time']['source_type'],'city_schedule')
         merged=combine_performance(merged,official)
@@ -105,6 +105,9 @@ class IdentityAndEvidenceTests(unittest.TestCase):
                 self.assertEqual([event.get("time", "") for event in merged], case["expected"]["times"])
                 if "price" in case["expected"]:
                     self.assertEqual(merged[0].get("price"), case["expected"]["price"])
+                if "time_source" in case["expected"]:
+                    self.assertEqual(field_provenance(merged[0], "time")["source_type"],
+                                     case["expected"]["time_source"])
 
 
 

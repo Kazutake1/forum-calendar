@@ -8,6 +8,7 @@ from event_integrity import (
     MANUAL_SOURCE_TYPES,
     manual_source_valid,
     source_rank,
+    combine_performance,
 )
 
 
@@ -59,13 +60,14 @@ class EventPolicyContractTests(unittest.TestCase):
             "event_guide", "city_event_calendar",
         ):
             with self.subTest(source_type=source_type):
-                self.assertEqual(source_rank(self.event(source_type, city_url), "time"), 2)
+                self.assertEqual(source_rank(self.event(source_type, city_url), "time"),
+                                 3 if source_type in ("city_event_guide", "event_guide") else 2)
 
         for source_type in ("event_official", "organizer", "promoter"):
             with self.subTest(source_type=source_type):
                 self.assertEqual(
                     source_rank(self.event(source_type, official_url, event_specific=True), "time"),
-                    3,
+                    4,
                 )
                 self.assertEqual(
                     source_rank(self.event(source_type, official_url, event_specific=False), "time"),
@@ -119,6 +121,33 @@ class EventPolicyContractTests(unittest.TestCase):
             for source_type in group["source_types"]:
                 self.assertNotIn(source_type, seen)
                 seen.add(source_type)
+
+    def test_official_guide_wins_in_both_orders_with_provenance_and_history(self):
+        city = "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+        schedule = self.event("city_schedule", city)
+        guide = dict(self.event("city_event_guide", city), time="開演19:00",
+                     checked_at="2026-11-08T00:00:00Z")
+        first = combine_performance(schedule, guide)
+        second = combine_performance(guide, schedule)
+        self.assertEqual(first["time"], guide["time"])
+        self.assertEqual(second["time"], guide["time"])
+        self.assertEqual(first["field_sources"]["time"]["source_type"], "city_event_guide")
+        self.assertEqual(first["official_change_history"][0]["previous"], schedule["time"])
+        self.assertEqual(first["official_change_history"][0]["source_url"], city)
+        self.assertEqual(first["official_change_history"][0]["checked_at"], guide["checked_at"])
+        again = combine_performance(first, guide)
+        self.assertEqual(again["official_change_history"], first["official_change_history"])
+
+    def test_official_label_does_not_certify_unverified_or_weaker_fields(self):
+        city = "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+        schedule = self.event("city_schedule", city)
+        guide = dict(self.event("city_event_guide", city), time="開演19:00")
+        for extras in ({"verified_fields": ["title"]}, {"field_sources": {"time": {
+            "source_type": "x", "source_url": "https://x.com/example/status/1", "verified": True}}}):
+            self.assertEqual(combine_performance(schedule, dict(guide, **extras))["time"], schedule["time"])
+        official = dict(self.event("organizer", "https://example.org/show", event_specific=True), time="開演20:00")
+        self.assertEqual(combine_performance(official, guide)["time"], official["time"])
+        self.assertEqual(combine_performance(guide, official)["time"], official["time"])
 
 
 if __name__ == "__main__":

@@ -4,9 +4,9 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 import requests
-from event_integrity import same_performance, combine_performance, normalize_title
+from event_integrity import same_performance, combine_performance, normalize_title, source_rank
 from jr_walking_web import parse_jr_inazawa_walks
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 
 ROOT = Path(__file__).resolve().parent
 EVENTS_FILE = ROOT / "events.json"
@@ -46,6 +46,17 @@ EVENT_CORRECTIONS = {
         "official_url": "https://apf.fitness/contest/apf%E5%90%8D%E5%8F%A4%E5%B1%8B%E5%A4%A7%E4%BC%9A/",
     },
 }
+
+# These are individually verified identity corrections, not same-day/hall guesses.
+# Source: the official city guide, checked 2026-11-08. The 2027-01-23
+# performer is also listed on https://www.bungiku.com/.
+REVIEWED_GUIDE_IDENTITIES = (
+    ("2026-11-05", "小ホール", "Morning Classic Vol.3", "モーニングクラシックVol.3"),
+    ("2026-11-15", "中ホール",
+     "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」",
+     "音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」"),
+    ("2027-01-23", "小ホール", "春風亭朝枝独演会", "古今亭文菊独演会"),
+)
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -152,7 +163,7 @@ def sanitize_event(e):
     if e.get("official_url"):
         u=clean(e.get("official_url"),500); pu=urlparse(u)
         if pu.scheme=="https" and pu.hostname and not any(ch in u for ch in ['"',"'","<",">"]): out["official_url"]=u
-    for name in ("event_id","performance_id","source_type","source_url","source_verified","verified_fields","event_specific","field_sources","review_conflicts","opening_time_sources"):
+    for name in ("event_id","performance_id","source_type","source_url","source_verified","verified_fields","event_specific","field_sources","review_conflicts","opening_time_sources","previous_titles","official_change_history"):
         if name in e: out[name]=e[name]
     for name in ("date","title","hall","time","price","official_url"):
         for suffix in ("_source_type","_source_url","_source_verified","_event_specific"):
@@ -233,27 +244,270 @@ def infer_year_months(label,pdf_url):
     if m: return int(m.group(1)),[int(m.group(2)),int(m.group(3))]
     n=datetime.now(JST); return n.year,[n.month]
 
+def _guide_section_text(heading):
+    """Read labeled sections until the next event h2, not until the next h3."""
+    sections = {"date": [], "time": [], "hall": [], "fallback": []}
+    active = "fallback"
+    for node in heading.next_elements:
+        if getattr(node, "name", None) == "h2":
+            break
+        if getattr(node, "name", None) in ("h3", "h4"):
+            label = clean(node.get_text(" ", strip=True), 80)
+            if label == "開催日":
+                active = "date"
+            elif label in ("時間", "開催時間", "開演時間"):
+                active = "time"
+            elif label in ("開催場所", "会場"):
+                active = "hall"
+            else:
+                active = "fallback"
+            continue
+        if not isinstance(node, NavigableString):
+            continue
+        if node.parent is heading or node.parent.name in ("script", "style", "noscript"):
+            continue
+        value = clean(str(node), 240)
+        if value:
+            sections[active].append(value)
+    return {key: " ".join(value) for key, value in sections.items()}
+
+
+def _guide_dates(text):
+    dates = set()
+    for found in re.finditer(
+        r"(?:(?:令和\s*(\d{1,2})年)|(20\d{2})年)\s*(\d{1,2})月\s*(\d{1,2})日",
+        text,
+    ):
+        era, gregorian, month, day = found.groups()
+        year = 2018 + int(era) if era else int(gregorian)
+        value = f"{year:04d}-{int(month):02d}-{int(day):02d}"
+        if valid_date(value):
+            dates.add(value)
+    return dates
+
+
+def _guide_time(text):
+    """Return (time, unambiguous); never mistake door time for a second show."""
+    text = re.sub(r"[（(]\s*開場[^）)]*[）)]", "", text)
+    found = list(re.finditer(
+        r"(午前|午後)?\s*(\d{1,2})時\s*(?:(\d{1,2})分)?",
+        text,
+    ))
+    if not found:
+        return "", True
+    if len(found) > 2:
+        return "", False
+    times = []
+    for match in found:
+        period, hour, minute = match.groups()
+        h, m = int(hour), int(minute or 0)
+        if (h > 12 if period else h > 23) or m > 59:
+            return "", False
+        if period == "午後" and h < 12:
+            h += 12
+        if period == "午前" and h == 12:
+            h = 0
+        times.append(f"{h:02d}:{m:02d}")
+    if len(times) == 1:
+        return times[0] + "〜", True
+    between = text[found[0].end():found[1].start()]
+    if re.fullmatch(r"\s*[〜～~－-]\s*", between):
+        return times[0] + "〜" + times[1], True
+    return "", False
+
+
 def parse_event_guide(event_guide):
-    r=get(event_guide); soup=BeautifulSoup(r.text,"html.parser"); events=[]
-    for h in soup.find_all(["h2","h3","h4"]):
-        title=clean(h.get_text(" ",strip=True))
-        if not title or any(x in title for x in ["開催日","チケット","お問い合わせ","料金","会場"]) or is_non_event_guide_notice(title): continue
-        chunk=[]; cur=h
-        for _ in range(12):
-            cur=cur.find_next()
-            if not cur: break
-            if cur.name in ["h2","h3","h4"] and cur is not h: break
-            t=clean(cur.get_text(" ",strip=True))
-            if t: chunk.append(t)
-        ctx=" ".join(chunk); dm=re.search(r"令和\s*(\d+)年\s*(\d+)月\s*(\d+)日",ctx)
-        if dm: year,month,day=2018+int(dm.group(1)),int(dm.group(2)),int(dm.group(3))
-        else:
-            dm=re.search(r"(20\d{2})年\s*(\d+)月\s*(\d+)日",ctx)
-            if not dm: continue
-            year,month,day=map(int,dm.groups())
-        hall=next((hh for hh in HALLS if hh in ctx),"その他"); tm=re.search(r"(\d{1,2})時(\d{2})分",ctx); time=f"{int(tm.group(1))}:{tm.group(2)}〜" if tm else ""; cleaned=re.sub(r"^[〖【].*?[〗】]\s*","",title)
-        events.append({"date":f"{year:04d}-{month:02d}-{day:02d}","hall":hall,"time":time,"title":cleaned,"price":"","source":"event_guide","official_url":event_guide,"source_type":"city_event_guide","source_url":event_guide,"source_verified":True,"verified_fields":["date","title"]+(["hall"] if hall!="その他" else [])+(["time"] if tm else [])})
+    """Conservatively parse one-date, one-hall, one-performance city notices."""
+    response = get(event_guide)
+    soup = BeautifulSoup(response.text, "html.parser")
+    events = []
+    today = jst_today()
+    for heading in soup.find_all("h2"):
+        title = clean(heading.get_text(" ", strip=True))
+        title = re.sub(r"^[〖【][^〗】]{1,60}[〗】]\s*", "", title)
+        title = re.sub(r"[（(](?:チケット発売中|発売中|販売中|完売御礼|完売)[）)]\s*$", "", title).strip()
+        title = re.sub(r"[（(]\s*\d{1,2}/\d{1,2}\s*発売開始[）)]\s*$", "", title).strip()
+        if not title or is_non_event_guide_notice(title):
+            continue
+        sections = _guide_section_text(heading)
+        date_text = sections["date"] or sections["fallback"]
+        hall_text = sections["hall"] or sections["fallback"]
+        time_text = sections["time"] or sections["fallback"]
+        dates = _guide_dates(date_text)
+        halls = [hall for hall in sorted(HALLS) if hall in hall_text]
+        # Several days, several halls and several start times require event-level
+        # matching; never turn one of those into an invented single performance.
+        if len(dates) != 1 or len(halls) != 1:
+            continue
+        event_date = next(iter(dates))
+        event_day = datetime.strptime(event_date, "%Y-%m-%d").date()
+        if not today - timedelta(days=45) <= event_day <= today + timedelta(days=420):
+            continue
+        time, unambiguous = _guide_time(time_text)
+        if not unambiguous:
+            continue
+        events.append({
+            "date": event_date, "hall": halls[0], "time": time,
+            "title": title, "price": "", "source": "event_guide",
+            # Keep the published event's specific official_url intact; this
+            # listing page is provenance, not an individual organizer link.
+            "source_type": "city_event_guide", "source_url": event_guide,
+            "source_verified": True,
+            "verified_fields": ["date", "title", "hall"] + (["time"] if time else []),
+        })
     return dedupe(events)
+
+
+def _reviewed_guide_identity(saved, candidate):
+    for date, hall, previous, official in REVIEWED_GUIDE_IDENTITIES:
+        if saved.get("date") != date or saved.get("hall") != hall:
+            continue
+        if candidate.get("date") != date or candidate.get("hall") != hall:
+            continue
+        titles = [saved.get("title"), *(saved.get("previous_titles") or [])]
+        if (normalize_title(official) == normalize_title(candidate.get("title"))
+                and any(normalize_title(previous) == normalize_title(title) for title in titles)):
+            return True
+    return False
+
+
+def reconcile_official_guide(saved, candidates, manual=(), verified=(), checked_at=""):
+    """Apply newer confirmed official guide fields only to proven event identities.
+
+    A single same-date/hall record is NOT proof that its title or performer
+    refers to the same performance. Keep those cases for source-level review.
+    """
+    if not isinstance(saved, list) or not isinstance(candidates, list):
+        raise ValueError("公式イベント案内のデータ形式が不正です")
+    updated = [dict(record) for record in saved]
+    accepted = []
+    review = []
+    counts = {}
+    for candidate in candidates:
+        slot = (candidate.get("date"), candidate.get("hall"))
+        counts[slot] = counts.get(slot, 0) + 1
+
+    def hold(candidate, reason, competing):
+        review.append({
+            "date": candidate["date"], "hall": candidate["hall"],
+            "title": candidate["title"], "time": candidate.get("time", ""),
+            "reason": reason, "source_url": candidate["source_url"],
+            "existing": [
+                {"title": e.get("title", ""), "time": e.get("time", "")}
+                for e in competing
+            ],
+            "checked_at": checked_at,
+        })
+
+    for candidate in candidates:
+        url = str(candidate.get("source_url") or "")
+        parsed = urlparse(url)
+        if (candidate.get("source_type") != "city_event_guide"
+                or candidate.get("source_verified") is not True
+                or parsed.scheme != "https"
+                or parsed.hostname != "www.city.inazawa.aichi.jp"):
+            hold(candidate, "公式出典を確認できません", [])
+            continue
+        slot = (candidate["date"], candidate["hall"])
+        matching_slot = [(i, e) for i, e in enumerate(updated)
+                         if (e.get("date"), e.get("hall")) == slot]
+        manual_slot = [e for e in manual if (e.get("date"), e.get("hall")) == slot]
+        verified_slot = [e for e in verified
+                         if (e.get("date"), e.get("hall")) == slot
+                         and e.get("source_confirmed") is True]
+        if counts[slot] != 1:
+            hold(candidate, "公式案内の同日同会場に複数候補があります",
+                 [e for _, e in matching_slot])
+            continue
+
+        matches = [
+            (i, e) for i, e in matching_slot
+            if (same_performance(e, candidate)
+                or (len(matching_slot) == 1 and
+                    normalize_title(e.get("title")) == normalize_title(candidate["title"]))
+                or _reviewed_guide_identity(e, candidate))
+        ]
+        if len(matches) != 1 and matching_slot:
+            hold(candidate, "既存情報との同一公演を特定できません",
+                 [e for _, e in matching_slot])
+            continue
+        if len(matches) > 1:
+            hold(candidate, "複数の既存公演が一致します", [e for _, e in matches])
+            continue
+
+        if matches:
+            index, current = matches[0]
+            # A separately verified individual artist/organizer page outranks
+            # the shared city listing. Never downgrade its certified fields.
+            if any(
+                source_rank(current, field) > source_rank(candidate, field)
+                for field in ("date", "title", "hall", "time")
+            ):
+                hold(candidate, "個別公演公式の確認済み情報を維持します", [current])
+                continue
+            # Do not overwrite manual events: separate overlay may be an
+            # independently ticketed performance on the same stage/day.
+            if any(not same_performance(e, candidate) for e in manual_slot):
+                hold(candidate, "手動イベントとの同一性を確認できません", manual_slot)
+                continue
+            if verified_slot and not all(
+                same_performance(row, candidate)
+                or _reviewed_guide_identity(current, candidate)
+                or normalize_title(row.get("title")) == normalize_title(candidate["title"])
+                for row in verified_slot
+            ):
+                hold(candidate, "照合済み予定表との同一性を確認できません", verified_slot)
+                continue
+
+            next_record = dict(current)
+            evidence = dict(next_record.get("field_sources") or {})
+            changes = []
+            for field in ("title", "hall", "time"):
+                if field not in candidate.get("verified_fields", []):
+                    continue
+                newer = candidate.get(field)
+                if not newer:
+                    continue
+                previous = next_record.get(field)
+                if previous != newer:
+                    changes.append({"field": field, "previous": previous or "",
+                                    "official": newer, "source_url": url,
+                                    "checked_at": checked_at})
+                    if field == "title":
+                        aliases = list(next_record.get("previous_titles") or [])
+                        if previous and previous not in aliases:
+                            aliases.append(previous)
+                        next_record["previous_titles"] = aliases
+                    next_record[field] = newer
+                evidence[field] = {
+                    "source_type": "city_event_guide", "source_url": url,
+                    "verified": True, "event_specific": False,
+                }
+            if changes:
+                next_record["official_change_history"] = (
+                    list(next_record.get("official_change_history") or []) + changes
+                )
+            next_record["field_sources"] = evidence
+            next_record["source_type"] = "city_event_guide"
+            next_record["source_url"] = url
+            next_record["source_verified"] = True
+            next_record["verified_fields"] = list(candidate["verified_fields"])
+            tokens = [part for part in str(current.get("source") or "").split("+") if part]
+            if "event_guide" not in tokens:
+                tokens.append("event_guide")
+            next_record["source"] = "+".join(tokens)
+            updated[index] = next_record
+            accepted.append(next_record)
+        else:
+            if manual_slot or verified_slot:
+                hold(candidate, "手動・照合済み予定表との重複を確認できません",
+                     manual_slot + verified_slot)
+                continue
+            # No same-slot record in any of the three protected data sources.
+            updated.append(dict(candidate))
+            accepted.append(candidate)
+    return updated, accepted, review
+
 
 def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
 
@@ -374,10 +628,21 @@ def main():
     except Exception as e: notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")
     try: schedule_page,mode=discover_page("schedule",schedule_page_pref); notes.append(f"催事予定表URL: {mode} {schedule_page}")
     except Exception as e: notes.append(f"催事予定表URL探索失敗: {clean(e,180)}")
+    guide_reviews=[]
     try:
-        guide=parse_event_guide(event_guide)
-        if guide: source_success=True; forum_success=True; notes.append(f"公式イベント案内 {len(guide)}件")
-        else: notes.append("公式イベント案内: 構造化イベント0件")
+        candidates=parse_event_guide(event_guide)
+        manual=json.loads((ROOT / "manual_events.json").read_text(encoding="utf-8"))
+        verified=json.loads((ROOT / "verified_schedule.json").read_text(encoding="utf-8"))["events"]
+        if not isinstance(manual,list) or not isinstance(verified,list):
+            raise ValueError("既存の手動・照合済みイベントを確認できません")
+        old,guide,guide_reviews=reconcile_official_guide(
+            old,candidates,manual,verified,run_at)
+        if guide_reviews:
+            notes.append(f"公式イベント案内: 同一性未確認の{len(guide_reviews)}件を保留（詳細はguide_review_candidates）")
+        if guide:
+            source_success=True;forum_success=True
+            notes.append(f"公式イベント案内: 安全に採用した{len(guide)}件")
+        else: notes.append("公式イベント案内: 確実に統合できる構造化イベント0件")
     except Exception as e: notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
     try:
         label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content; year,months=infer_year_months(label,pdf_url)
@@ -415,12 +680,12 @@ def main():
            any(s in str(e.get("source") or "") for s in ("city_event_calendar","tourism"))
            for e in old):
         notes.append("文化の丘公園: 既存イベントは保持（収集結果だけでは削除を判断しません）")
-    base.extend(guide); base.extend(park)
+    base.extend(park)
     if jr_success: base=[e for e in base if not (e.get("hall")==JR_INAZAWA or JR_INAZAWA in (e.get("venues") or []))]; base.extend(jr_walk)
     merged=dedupe(base)
     if not merged: merged=old
     last_success=run_at if source_success else old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_forum=run_at if forum_success else old_meta.get("last_successful_forum_at") or old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_park=run_at if park_success else old_meta.get("last_successful_park_at") or ""; status="ok" if forum_success else ("partial" if source_success else "fallback")
-    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
+    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"guide_review_candidates":guide_reviews,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
 
 if __name__=="__main__":
     raise SystemExit("update_events.py の直接実行は無効です。update_events_no_ocr.py を使用してください。")
