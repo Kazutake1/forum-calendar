@@ -97,9 +97,13 @@
           ? previous.verified_fields : [];
         if (allowed.includes('title') && previous.title) e.title = previous.title;
         if (allowed.includes('time') && previous.time) {
-          const officialStart = String(previous.time).match(/\d{1,2}:\d{2}/)?.[0] || '';
-          const scheduleStart = String(e.time).match(/\d{1,2}:\d{2}/)?.[0] || '';
-          if (!officialStart || officialStart !== scheduleStart) {
+          const officialClocks = String(previous.time).match(/\d{1,2}:\d{2}/g) || [];
+          const scheduleClocks = String(e.time).match(/\d{1,2}:\d{2}/g) || [];
+          const officialStart = officialClocks[0] || '';
+          const scheduleStart = scheduleClocks[0] || '';
+          const endConflict = officialClocks.length > 1 && scheduleClocks.length > 1 &&
+            officialClocks[1] !== scheduleClocks[1];
+          if (!officialStart || officialStart !== scheduleStart || endConflict) {
             const scheduleTime = e.time;
             e.time = previous.time;
             e.detail_review = {
@@ -137,7 +141,7 @@
           cityProof = previous.source_verified === true && url.protocol === 'https:' &&
             url.hostname === CITY_HOST; }
         catch (_) { /* Historical entries without a source cannot establish an official discrepancy. */ }
-        if (cityProof && a && b && a !== b) {
+        if (cityProof && a && b && a !== b && !guideProof) {
           e.detail_review = {status:'要確認', note:`催事予定表の時間は${e.time}。市公式イベント案内は${previous.time}。`,
             conflicting_source_url:previous.official_url || previous.source_url || ''};
         }

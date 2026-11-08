@@ -67,6 +67,11 @@ const officialTimeWins = ctx.window.mergeVerifiedForumSchedule(
   ctx.window.mergeForumEvents(adjustedStart,originalManual), verified);
 assert.equal(officialTimeWins.find(e=>e.id==='schedule-11-16').time,'13:00〜');
 assert.equal(officialTimeWins.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
+const differentEnd = improvedAuto.map(e=>e.date==='2026-11-15' ? {...e,time:'14:00〜16:00'} : e);
+const officialEndWins = ctx.window.mergeVerifiedForumSchedule(
+  ctx.window.mergeForumEvents(differentEnd,originalManual), verified);
+assert.equal(officialEndWins.find(e=>e.id==='schedule-11-16').time,'14:00〜16:00');
+assert.equal(officialEndWins.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
 assert.equal(records('verified_schedule.json').events.length,58);
 
 const officialMismatch = mergedManual.map(x=>x.title==='音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」'
