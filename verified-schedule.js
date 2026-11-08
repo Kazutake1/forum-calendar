@@ -127,8 +127,10 @@
             official.starts[0]===scheduled.starts[0];
           const doorsOnly=official.starts.length===0&&official.doors.length===1&&scheduled.starts.length===1;
           if (doorsOnly) {
-            e.time='開場'+official.doors[0]+'／開演'+scheduled.starts[0]+(scheduleEnd?'（終演'+scheduleEnd+'）':'');
-            e.time_supplement={start_time:scheduled.starts[0],end_time:scheduleEnd,...fieldEvidence(scheduleProof,'time')};
+            const chosenEnd=officialEnd||scheduleEnd;
+            e.time='開場'+official.doors[0]+'／開演'+scheduled.starts[0]+(chosenEnd?'（終演'+chosenEnd+'）':'');
+            e.time_supplement={start_time:scheduled.starts[0],
+              ...(!officialEnd&&scheduleEnd?{end_time:scheduleEnd}:{}),...fieldEvidence(scheduleProof,'time')};
           } else if (sameStart && !officialEnd && scheduleEnd) {
             e.time = official.doors.length ? previous.time+'（終演'+scheduleEnd+'）' : original.time;
             e.time_supplement = {end_time:scheduleEnd, ...fieldEvidence(scheduleProof,'time')};

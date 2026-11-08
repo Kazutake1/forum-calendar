@@ -106,6 +106,14 @@ const doorOnly=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場13:30
 const doorOnlyResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(doorOnly,originalManual),verified);
 assert.equal(doorOnlyResult.find(e=>e.id==='schedule-11-16').time,'開場13:30／開演14:00（終演15:30）');
 assert.equal(doorOnlyResult.find(e=>e.id==='schedule-11-16').time_supplement.start_time,'14:00');
+// Only the missing start is supplemented: the official end must never be replaced.
+const doorAndEnd=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場13:30／終演16:00'}:e);
+const doorEndResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(doorAndEnd,originalManual),verified);
+const doorEndConcert=doorEndResult.find(e=>e.id==='schedule-11-16');
+assert.equal(doorEndConcert.time,'開場13:30／開演14:00（終演16:00）');
+assert.equal(doorEndConcert.time_supplement.start_time,'14:00');
+assert.equal(doorEndConcert.time_supplement.end_time,undefined);
+assert.equal(doorEndConcert.detail_review.status,'要確認');
 const namedEnd=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場13:30／開演14:00／終演16:00'}:e);
 const namedEndResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(namedEnd,originalManual),verified);
 assert.equal(namedEndResult.find(e=>e.id==='schedule-11-16').time,'開場13:30／開演14:00／終演16:00');
