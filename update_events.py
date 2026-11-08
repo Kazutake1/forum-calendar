@@ -447,11 +447,7 @@ def reconcile_official_guide(saved, candidates, manual=(), verified=(), checked_
                 continue
             # Do not overwrite manual events: separate overlay may be an
             # independently ticketed performance on the same stage/day.
-            if any(
-                not (same_performance(e, candidate)
-                     or normalize_title(e.get("title")) == normalize_title(current.get("title")))
-                for e in manual_slot
-            ):
+            if any(not same_performance(e, candidate) for e in manual_slot):
                 hold(candidate, "手動イベントとの同一性を確認できません", manual_slot)
                 continue
             if verified_slot and not all(

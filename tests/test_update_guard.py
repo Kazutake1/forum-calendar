@@ -355,6 +355,17 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(updated[0]["title"], "別の公演")
         self.assertIn("手動", review[0]["reason"])
 
+        # A manual alias must not turn into a duplicate when the automatic
+        # record is later renamed by a stronger official source.
+        guide_new = dict(different, date="2026-11-05", hall="小ホール",
+                         title="モーニングクラシックVol.3", time="10:00〜")
+        guide_old = {"date":"2026-11-05", "hall":"小ホール",
+                     "title":"Morning Classic Vol.3", "time":"10:00〜"}
+        updated, _, review = reconcile_official_guide(
+            [guide_old], [guide_new], [dict(guide_old)], [])
+        self.assertEqual(updated,[guide_old])
+        self.assertIn("手動",review[0]["reason"])
+
         protected = dict(old, title="別の公演", source_type="event_official",
                          source_url="https://example.org/event", source_verified=True,
                          event_specific=True, verified_fields=["title"])
