@@ -10,7 +10,7 @@ from unittest.mock import patch
 from event_integrity import combine_performance, same_performance, source_rank
 from update_events import (
     dedupe, is_non_event_guide_notice, is_stale_event_guide_notice, load_required_events,
-    parse_event_guide, park_event_from_page,
+    parse_event_guide, park_event_from_page, reconcile_official_guide,
 )
 
 
@@ -270,6 +270,113 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(actual[0]["title"], saved["title"])
         self.assertEqual(actual[0]["official_url"], saved["official_url"])
         self.assertTrue(any("1件を保留" in note for note in metadata["notes"]))
+
+    def test_verified_guide_corrects_stale_names_and_times_idempotently(self):
+        guide_url = "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+        specs = [
+            ("2026-11-01", "大ホール",
+             'KAZUYOSHI SAITO LIVE TOUR 2026 “日常 Days”',
+             'KAZUYOSHI SAITO LIVE TOUR2026"日常 Days"', "17:00〜", "17:00〜"),
+            ("2026-11-05", "小ホール", "Morning Classic Vol.3",
+             "モーニングクラシックVol.3", "", "10:00〜"),
+            ("2026-11-15", "中ホール",
+             "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」",
+             "音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」",
+             "16:00〜", "14:00〜"),
+            ("2026-12-13", "大ホール", "劇団四季「コーラスライン」",
+             "劇団四季「コーラスライン」", "16:30〜", "16:30〜"),
+            ("2027-01-10", "中ホール",
+             "音楽家の集い Vol.114 尾髙詩音里＆新庄龍馬 デュオリサイタル",
+             "音楽家の集いVol.114「尾髙詩音里＆新庄龍馬デュオリサイタル」",
+             "14:00〜", "14:00〜"),
+            ("2027-01-23", "小ホール", "春風亭朝枝独演会",
+             "古今亭文菊独演会", "", "14:00〜"),
+        ]
+        saved = [
+            {"date": day, "hall": hall, "title": older, "time": old_time,
+             "price": "既存料金", "venues": [hall]}
+            for day, hall, older, newer, old_time, new_time in specs
+        ]
+        candidates = [
+            {"date": day, "hall": hall, "title": newer, "time": new_time,
+             "source": "event_guide", "source_type": "city_event_guide",
+             "source_url": guide_url, "source_verified": True,
+             "verified_fields": ["date", "title", "hall", "time"]}
+            for day, hall, older, newer, old_time, new_time in specs
+        ]
+        schedule = [
+            {"date": day, "hall": hall, "title": newer, "time": new_time,
+             "source_confirmed": True}
+            for day, hall, older, newer, old_time, new_time in specs[:3]
+        ]
+        updated, accepted, conflicts = reconcile_official_guide(
+            saved, candidates, [], schedule, "2026-11-08T00:00:00+00:00")
+        self.assertEqual(len(updated), 6)
+        self.assertEqual(len(accepted), 6)
+        self.assertEqual(conflicts, [])
+        by_date = {e["date"]: e for e in updated}
+        self.assertEqual(by_date["2026-11-15"]["time"], "14:00〜")
+        self.assertEqual(by_date["2026-11-15"]["price"], "既存料金")
+        self.assertEqual(by_date["2027-01-23"]["title"], "古今亭文菊独演会")
+        self.assertIn("春風亭朝枝独演会",
+                      by_date["2027-01-23"]["previous_titles"])
+        self.assertIn("Morning Classic Vol.3",
+                      by_date["2026-11-05"]["previous_titles"])
+        self.assertTrue(all(e["source_verified"] for e in updated))
+        self.assertTrue(all(e["official_change_history"] for e in updated if e.get("previous_titles")))
+        self.assertTrue(all(e["verified_fields"] == ["date", "title", "hall", "time"]
+                            for e in updated))
+
+        again, _, followup = reconcile_official_guide(
+            updated, candidates, [], schedule, "2026-11-09T00:00:00+00:00")
+        self.assertEqual(again, updated)
+        self.assertEqual(followup, [])
+
+    def test_guide_conflicts_record_proof_without_overwriting(self):
+        source_url = "https://www.city.inazawa.aichi.jp/ica/0000002507.html"
+        old = {"date": "2027-03-22", "hall": "大ホール",
+               "title": "元の公演", "time": "14:00〜", "price": "500円"}
+        different = {"date": "2027-03-22", "hall": "大ホール",
+                     "title": "別の公演", "time": "14:00〜",
+                     "source_type": "city_event_guide", "source_verified": True,
+                     "source_url": source_url, "verified_fields": ["date", "title", "hall", "time"]}
+        updated, candidates, review = reconcile_official_guide(
+            [old], [different], [], [], "2026-11-08T00:00:00+00:00")
+        self.assertEqual(updated, [old])
+        self.assertEqual(candidates, [])
+        self.assertEqual(review[0]["existing"][0]["title"], "元の公演")
+        self.assertEqual(review[0]["source_url"], source_url)
+        self.assertIn("同一公演", review[0]["reason"])
+
+        manual = [{"date": "2027-03-22", "hall": "大ホール",
+                   "title": "未照合の手動催事", "time": "14:00〜"}]
+        updated, _, review = reconcile_official_guide(
+            [dict(old, title="別の公演")], [different], manual, [])
+        self.assertEqual(updated[0]["title"], "別の公演")
+        self.assertIn("手動", review[0]["reason"])
+
+        protected = dict(old, title="別の公演", source_type="event_official",
+                         source_url="https://example.org/event", source_verified=True,
+                         event_specific=True, verified_fields=["title"])
+        updated, _, review = reconcile_official_guide([protected], [different])
+        self.assertEqual(updated, [protected])
+        self.assertIn("個別公演公式", review[0]["reason"])
+
+    def test_guide_sales_date_not_part_of_event_name(self):
+        html = """
+        <html><body>
+          <h2>【財団主催事業】古今亭文菊独演会（10/16発売開始）</h2>
+          <h3>開催日</h3><p>令和9年1月23日（土曜日）</p>
+          <h3>時間</h3><p>午後2時（開場：午後1時30分）</p>
+          <h3>開催場所</h3><p>小ホール</p>
+        </body></html>
+        """
+        response = type("Response", (), {"text": html})()
+        with patch("update_events.get", return_value=response):
+            rows = parse_event_guide("https://www.city.inazawa.aichi.jp/ica/0000002507.html")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["title"], "古今亭文菊独演会")
+        self.assertEqual(rows[0]["time"], "14:00〜")
 
     def test_city_event_calendar_uses_city_rank_not_event_official_rank(self):
         event_date = date.today() + timedelta(days=30)

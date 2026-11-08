@@ -33,6 +33,42 @@ assert.equal(after.some(x=>x.id==='manual-20261031-meiji-zahatorte'),true);
 assert.equal(after.some(x=>x.title==='セントラル愛知交響楽団 公開講座 Part3'),true);
 assert.equal(after.filter(x=>x.date==='2026-11-19'&&x.hall==='小ホール').length,1);
 assert.equal(after.find(x=>x.id==='schedule-11-16').detail_review,undefined);
+// A newer verified official listing wins, while the pinned schedule supplies
+// a missing end time and its raw source rows are never rewritten.
+const officialGuideUrl = 'https://www.city.inazawa.aichi.jp/ica/0000002507.html';
+const improvedAuto = originalAuto.map(e => {
+  const replacements = {
+    '2026-11-01': ['KAZUYOSHI SAITO LIVE TOUR2026"日常 Days"', '17:00〜'],
+    '2026-11-05': ['モーニングクラシックVol.3', '10:00〜'],
+    '2026-11-15': ['音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」', '14:00〜'],
+  };
+  const replacement = replacements[e.date];
+  if (!replacement) return e;
+  return {...e, previous_titles:[e.title], title:replacement[0], time:replacement[1],
+    source_verified:true, source_type:'city_event_guide', source_url:officialGuideUrl,
+    verified_fields:['date','title','hall','time']};
+});
+const improved = ctx.window.mergeVerifiedForumSchedule(
+  ctx.window.mergeForumEvents(improvedAuto,originalManual), verified);
+assert.equal(improved.length, after.length);
+assert.equal(improved.filter(e=>e.source_confirmed===true).length,58);
+assert.equal(improved.filter(e=>e.date==='2026-11-15'&&e.hall==='中ホール').length,1);
+const improvedConcert = improved.find(e=>e.id==='schedule-11-16');
+assert.equal(improvedConcert.title, '音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」');
+assert.equal(improvedConcert.time,'14:00-15:30');
+assert.equal(improvedConcert.source_type,'city_event_guide');
+assert.equal(improvedConcert.official_guide_evidence_url,officialGuideUrl);
+assert.equal(improvedConcert.detail_review,undefined);
+assert.equal(improved.find(e=>e.id==='schedule-11-04').title,'モーニングクラシックVol.3');
+assert.equal(improved.find(e=>e.id==='schedule-11-04').time,'10:00-11:30');
+assert.equal(improved.find(e=>e.id==='schedule-11-01').source_type,'city_event_guide');
+const adjustedStart = improvedAuto.map(e=>e.date==='2026-11-15' ? {...e,time:'13:00〜'} : e);
+const officialTimeWins = ctx.window.mergeVerifiedForumSchedule(
+  ctx.window.mergeForumEvents(adjustedStart,originalManual), verified);
+assert.equal(officialTimeWins.find(e=>e.id==='schedule-11-16').time,'13:00〜');
+assert.equal(officialTimeWins.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
+assert.equal(records('verified_schedule.json').events.length,58);
+
 const officialMismatch = mergedManual.map(x=>x.title==='音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」'
   ? {...x,source_verified:true,source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html'} : x);
 assert.equal(ctx.window.mergeVerifiedForumSchedule(officialMismatch,verified)

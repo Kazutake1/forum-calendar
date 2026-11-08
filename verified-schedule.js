@@ -72,7 +72,9 @@
         hasOwn(auto, e.id) ? {date:e.date, title:auto[e.id]} : null;
       if (!expected) continue;
       const matching = withoutMapped.map((x,i) => (expected.id
-        ? x.id === expected.id : x.date === expected.date && x.title === expected.title && !x.id)
+        ? x.id === expected.id : x.date === expected.date && !x.id &&
+          (x.title === expected.title ||
+           (Array.isArray(x.previous_titles) && x.previous_titles.includes(expected.title))))
         ? i : -1).filter(i => i !== -1);
       if (matching.length !== 1) {
         markConflict(e, matching.length ? withoutMapped[matching[0]] : null,
@@ -80,6 +82,44 @@
         continue;
       }
       const previous = withoutMapped[matching[0]];
+      // The current verified event guide outranks the fixed schedule for
+      // identity and start time; the schedule can supplement an omitted end.
+      // The raw 58-row verified_schedule.json remains untouched.
+      let guideProof = false;
+      try {
+        const source = new URL(previous.source_url || '');
+        guideProof = previous.source_type === 'city_event_guide' &&
+          previous.source_verified === true &&
+          source.protocol === 'https:' && source.hostname === CITY_HOST;
+      } catch (_) { /* No verified official guide evidence. */ }
+      if (guideProof) {
+        const allowed = Array.isArray(previous.verified_fields)
+          ? previous.verified_fields : [];
+        if (allowed.includes('title') && previous.title) e.title = previous.title;
+        if (allowed.includes('time') && previous.time) {
+          const officialStart = String(previous.time).match(/\d{1,2}:\d{2}/)?.[0] || '';
+          const scheduleStart = String(e.time).match(/\d{1,2}:\d{2}/)?.[0] || '';
+          if (!officialStart || officialStart !== scheduleStart) {
+            const scheduleTime = e.time;
+            e.time = previous.time;
+            e.detail_review = {
+              status: '要確認',
+              note: '公式イベント案内の開始時刻' + previous.time +
+                    'を優先。催事予定表の時刻は' + scheduleTime + '。',
+              conflicting_source_url: pdf,
+            };
+          } else if (!String(e.time).match(/\d{1,2}:\d{2}.*\d{1,2}:\d{2}/)) {
+            e.time = previous.time;
+          }
+        }
+        // Event-specific organizer URLs remain preferred to the city listing.
+        if (previous.price && !e.price) e.price = previous.price;
+        e.official_url = previous.official_url || previous.source_url;
+        e.source_url = previous.source_url;
+        e.source_type = previous.source_type;
+        e.source_verified = true;
+        e.official_guide_evidence_url = previous.source_url;
+      }
       if (hasOwn(manual,e.id) && (previous.date !== e.date ||
           (e.id !== 'schedule-11-14' && previous.hall !== e.hall) ||
           (e.id === 'schedule-10-07' && !String(previous.time||'').includes('16:30')))) {

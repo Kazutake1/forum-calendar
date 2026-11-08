@@ -80,6 +80,18 @@ jobs:
                   "date":item["date"],"title":item["title"],"hall":item["hall"],
                   "time":item["time"],"matches":matches,"same_slot":overlaps
               },ensure_ascii=False),flush=True)
+          proposed, applied, pending = u.reconcile_official_guide(
+              auto, candidates, manual, verified, "2026-11-08T03:24:27+00:00")
+          print("LIVE_RECONCILE",json.dumps({
+              "existing_auto":len(auto), "proposed_auto":len(proposed),
+              "accepted":len(applied), "pending":pending,
+              "changes":[{"date":x.get("date"),"title":x.get("title"),
+                          "time":x.get("time"),"history":x.get("official_change_history",[])}
+                         for x in proposed if x.get("official_change_history")]
+          },ensure_ascii=False),flush=True)
+          assert len(proposed) == len(auto), "Live check must not add/delete events"
+          assert len(applied) == 6 and not pending, "Live correction needs review"
+          assert len(manual) == 5 and len(verified) == 58
           print("LIVE_SUMMARY",json.dumps({
               "headings":len(headings),"candidates":len(candidates),
               "auto_count":len(auto),"manual_count":len(manual),

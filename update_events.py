@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 import requests
-from event_integrity import same_performance, combine_performance, normalize_title
+from event_integrity import same_performance, combine_performance, normalize_title, source_rank
 from jr_walking_web import parse_jr_inazawa_walks
 from bs4 import BeautifulSoup, NavigableString
 
@@ -46,6 +46,17 @@ EVENT_CORRECTIONS = {
         "official_url": "https://apf.fitness/contest/apf%E5%90%8D%E5%8F%A4%E5%B1%8B%E5%A4%A7%E4%BC%9A/",
     },
 }
+
+# These are individually verified identity corrections, not same-day/hall guesses.
+# Source: the official city guide, checked 2026-11-08. The 2027-01-23
+# performer is also listed on https://www.bungiku.com/.
+REVIEWED_GUIDE_IDENTITIES = (
+    ("2026-11-05", "小ホール", "Morning Classic Vol.3", "モーニングクラシックVol.3"),
+    ("2026-11-15", "中ホール",
+     "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」",
+     "音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」"),
+    ("2027-01-23", "小ホール", "春風亭朝枝独演会", "古今亭文菊独演会"),
+)
 
 def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -152,7 +163,7 @@ def sanitize_event(e):
     if e.get("official_url"):
         u=clean(e.get("official_url"),500); pu=urlparse(u)
         if pu.scheme=="https" and pu.hostname and not any(ch in u for ch in ['"',"'","<",">"]): out["official_url"]=u
-    for name in ("event_id","performance_id","source_type","source_url","source_verified","verified_fields","event_specific","field_sources","review_conflicts","opening_time_sources"):
+    for name in ("event_id","performance_id","source_type","source_url","source_verified","verified_fields","event_specific","field_sources","review_conflicts","opening_time_sources","previous_titles","official_change_history"):
         if name in e: out[name]=e[name]
     for name in ("date","title","hall","time","price","official_url"):
         for suffix in ("_source_type","_source_url","_source_verified","_event_specific"):
@@ -315,6 +326,7 @@ def parse_event_guide(event_guide):
         title = clean(heading.get_text(" ", strip=True))
         title = re.sub(r"^[〖【][^〗】]{1,60}[〗】]\s*", "", title)
         title = re.sub(r"[（(](?:チケット発売中|発売中|販売中|完売御礼|完売)[）)]\s*$", "", title).strip()
+        title = re.sub(r"[（(]\s*\d{1,2}/\d{1,2}\s*発売開始[）)]\s*$", "", title).strip()
         if not title or is_non_event_guide_notice(title):
             continue
         sections = _guide_section_text(heading)
@@ -344,6 +356,162 @@ def parse_event_guide(event_guide):
             "verified_fields": ["date", "title", "hall"] + (["time"] if time else []),
         })
     return dedupe(events)
+
+
+def _reviewed_guide_identity(saved, candidate):
+    for date, hall, previous, official in REVIEWED_GUIDE_IDENTITIES:
+        if saved.get("date") != date or saved.get("hall") != hall:
+            continue
+        if candidate.get("date") != date or candidate.get("hall") != hall:
+            continue
+        titles = [saved.get("title"), *(saved.get("previous_titles") or [])]
+        if (normalize_title(official) == normalize_title(candidate.get("title"))
+                and any(normalize_title(previous) == normalize_title(title) for title in titles)):
+            return True
+    return False
+
+
+def reconcile_official_guide(saved, candidates, manual=(), verified=(), checked_at=""):
+    """Apply newer confirmed official guide fields only to proven event identities.
+
+    A single same-date/hall record is NOT proof that its title or performer
+    refers to the same performance. Keep those cases for source-level review.
+    """
+    if not isinstance(saved, list) or not isinstance(candidates, list):
+        raise ValueError("公式イベント案内のデータ形式が不正です")
+    updated = [dict(record) for record in saved]
+    accepted = []
+    review = []
+    counts = {}
+    for candidate in candidates:
+        slot = (candidate.get("date"), candidate.get("hall"))
+        counts[slot] = counts.get(slot, 0) + 1
+
+    def hold(candidate, reason, competing):
+        review.append({
+            "date": candidate["date"], "hall": candidate["hall"],
+            "title": candidate["title"], "time": candidate.get("time", ""),
+            "reason": reason, "source_url": candidate["source_url"],
+            "existing": [
+                {"title": e.get("title", ""), "time": e.get("time", "")}
+                for e in competing
+            ],
+            "checked_at": checked_at,
+        })
+
+    for candidate in candidates:
+        url = str(candidate.get("source_url") or "")
+        parsed = urlparse(url)
+        if (candidate.get("source_type") != "city_event_guide"
+                or candidate.get("source_verified") is not True
+                or parsed.scheme != "https"
+                or parsed.hostname != "www.city.inazawa.aichi.jp"):
+            hold(candidate, "公式出典を確認できません", [])
+            continue
+        slot = (candidate["date"], candidate["hall"])
+        matching_slot = [(i, e) for i, e in enumerate(updated)
+                         if (e.get("date"), e.get("hall")) == slot]
+        manual_slot = [e for e in manual if (e.get("date"), e.get("hall")) == slot]
+        verified_slot = [e for e in verified
+                         if (e.get("date"), e.get("hall")) == slot
+                         and e.get("source_confirmed") is True]
+        if counts[slot] != 1:
+            hold(candidate, "公式案内の同日同会場に複数候補があります",
+                 [e for _, e in matching_slot])
+            continue
+
+        matches = [
+            (i, e) for i, e in matching_slot
+            if (same_performance(e, candidate)
+                or (len(matching_slot) == 1 and
+                    normalize_title(e.get("title")) == normalize_title(candidate["title"]))
+                or _reviewed_guide_identity(e, candidate))
+        ]
+        if len(matches) != 1 and matching_slot:
+            hold(candidate, "既存情報との同一公演を特定できません",
+                 [e for _, e in matching_slot])
+            continue
+        if len(matches) > 1:
+            hold(candidate, "複数の既存公演が一致します", [e for _, e in matches])
+            continue
+
+        if matches:
+            index, current = matches[0]
+            # A separately verified individual artist/organizer page outranks
+            # the shared city listing. Never downgrade its certified fields.
+            if any(
+                source_rank(current, field) == 3
+                for field in ("date", "title", "hall", "time")
+            ):
+                hold(candidate, "個別公演公式の確認済み情報を維持します", [current])
+                continue
+            # Do not overwrite manual events: separate overlay may be an
+            # independently ticketed performance on the same stage/day.
+            if any(
+                not (same_performance(e, candidate)
+                     or normalize_title(e.get("title")) == normalize_title(current.get("title")))
+                for e in manual_slot
+            ):
+                hold(candidate, "手動イベントとの同一性を確認できません", manual_slot)
+                continue
+            if verified_slot and not all(
+                same_performance(row, candidate)
+                or _reviewed_guide_identity(current, candidate)
+                or normalize_title(row.get("title")) == normalize_title(candidate["title"])
+                for row in verified_slot
+            ):
+                hold(candidate, "照合済み予定表との同一性を確認できません", verified_slot)
+                continue
+
+            next_record = dict(current)
+            evidence = dict(next_record.get("field_sources") or {})
+            changes = []
+            for field in ("title", "hall", "time"):
+                if field not in candidate.get("verified_fields", []):
+                    continue
+                newer = candidate.get(field)
+                if not newer:
+                    continue
+                previous = next_record.get(field)
+                if previous != newer:
+                    changes.append({"field": field, "previous": previous or "",
+                                    "official": newer, "source_url": url,
+                                    "checked_at": checked_at})
+                    if field == "title":
+                        aliases = list(next_record.get("previous_titles") or [])
+                        if previous and previous not in aliases:
+                            aliases.append(previous)
+                        next_record["previous_titles"] = aliases
+                    next_record[field] = newer
+                evidence[field] = {
+                    "source_type": "city_event_guide", "source_url": url,
+                    "verified": True, "event_specific": False,
+                }
+            if changes:
+                next_record["official_change_history"] = (
+                    list(next_record.get("official_change_history") or []) + changes
+                )
+            next_record["field_sources"] = evidence
+            next_record["source_type"] = "city_event_guide"
+            next_record["source_url"] = url
+            next_record["source_verified"] = True
+            next_record["verified_fields"] = list(candidate["verified_fields"])
+            tokens = [part for part in str(current.get("source") or "").split("+") if part]
+            if "event_guide" not in tokens:
+                tokens.append("event_guide")
+            next_record["source"] = "+".join(tokens)
+            updated[index] = next_record
+            accepted.append(next_record)
+        else:
+            if manual_slot or verified_slot:
+                hold(candidate, "手動・照合済み予定表との重複を確認できません",
+                     manual_slot + verified_slot)
+                continue
+            # No same-slot record in any of the three protected data sources.
+            updated.append(dict(candidate))
+            accepted.append(candidate)
+    return updated, accepted, review
+
 
 def month_add(dt,n): return dt.year+(dt.month-1+n)//12,(dt.month-1+n)%12+1
 
@@ -464,19 +632,20 @@ def main():
     except Exception as e: notes.append(f"イベント案内URL探索失敗: {clean(e,180)}")
     try: schedule_page,mode=discover_page("schedule",schedule_page_pref); notes.append(f"催事予定表URL: {mode} {schedule_page}")
     except Exception as e: notes.append(f"催事予定表URL探索失敗: {clean(e,180)}")
+    guide_reviews=[]
     try:
         candidates=parse_event_guide(event_guide)
-        withheld=0
-        for candidate in candidates:
-            same_slot=[saved for saved in old if saved.get("date")==candidate["date"] and
-                       candidate["hall"] in (saved.get("venues") or [saved.get("hall")])]
-            if same_slot and not any(same_performance(saved,candidate) for saved in same_slot):
-                withheld+=1
-            else:
-                guide.append(candidate)
-        if withheld:
-            notes.append(f"公式イベント案内: 既存の同日同会場イベントと照合できない{withheld}件を保留")
-        if guide: source_success=True; forum_success=True; notes.append(f"公式イベント案内 {len(guide)}件")
+        manual=json.loads((ROOT / "manual_events.json").read_text(encoding="utf-8"))
+        verified=json.loads((ROOT / "verified_schedule.json").read_text(encoding="utf-8"))["events"]
+        if not isinstance(manual,list) or not isinstance(verified,list):
+            raise ValueError("既存の手動・照合済みイベントを確認できません")
+        old,guide,guide_reviews=reconcile_official_guide(
+            old,candidates,manual,verified,run_at)
+        if guide_reviews:
+            notes.append(f"公式イベント案内: 同一性未確認の{len(guide_reviews)}件を保留（詳細はguide_review_candidates）")
+        if guide:
+            source_success=True;forum_success=True
+            notes.append(f"公式イベント案内: 安全に採用した{len(guide)}件")
         else: notes.append("公式イベント案内: 確実に統合できる構造化イベント0件")
     except Exception as e: notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
     try:
@@ -515,12 +684,12 @@ def main():
            any(s in str(e.get("source") or "") for s in ("city_event_calendar","tourism"))
            for e in old):
         notes.append("文化の丘公園: 既存イベントは保持（収集結果だけでは削除を判断しません）")
-    base.extend(guide); base.extend(park)
+    base.extend(park)
     if jr_success: base=[e for e in base if not (e.get("hall")==JR_INAZAWA or JR_INAZAWA in (e.get("venues") or []))]; base.extend(jr_walk)
     merged=dedupe(base)
     if not merged: merged=old
     last_success=run_at if source_success else old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_forum=run_at if forum_success else old_meta.get("last_successful_forum_at") or old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_park=run_at if park_success else old_meta.get("last_successful_park_at") or ""; status="ok" if forum_success else ("partial" if source_success else "fallback")
-    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
+    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"guide_review_candidates":guide_reviews,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
 
 if __name__=="__main__":
     raise SystemExit("update_events.py の直接実行は無効です。update_events_no_ocr.py を使用してください。")
