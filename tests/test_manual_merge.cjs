@@ -101,14 +101,27 @@ assert.throws(()=>merge([], [manual('legacy-event-guide','開演18:00',{
   source_verified:true,
 })]), /形式/);
 
-// City event guide and the verified city schedule are distinct source types but the same rank.
-assert.throws(() => merge([
-  base('開演18:00',{price:'市公式イベント案内価格',source_type:'city_event_guide',
-    source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',
-    source_verified:true,verified_fields:['price']})
-], [manual('schedule-price','開演18:00',{price:'催事予定表価格',source_type:'city_schedule',
+// A verified guide outranks a checked schedule in both insertion orders.
+const guidePrice=base('開演18:00',{price:'市公式イベント案内価格',source_type:'city_event_guide',
+  source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html',
+  source_verified:true,verified_fields:['price']});
+const schedulePrice=manual('schedule-price','開演18:00',{price:'催事予定表価格',source_type:'city_schedule',
   source_url:'https://www.city.inazawa.aichi.jp/ica/0000004875.html',
-  source_verified:true,verified_fields:['price']})]), /同順位の出典/);
+  source_verified:true,verified_fields:['price']});
+assert.equal(merge([guidePrice],[schedulePrice])[0].price,guidePrice.price);
+assert.equal(merge([schedulePrice],[{...guidePrice,id:'guide-price'}])[0].price,guidePrice.price);
+const correctedGuide=manual('guide-correction','開場17:30／開演19:00',{
+  source_type:'city_event_guide',source_url:guidePrice.source_url,source_verified:true,
+  verified_fields:['time'],checked_at:'2026-11-08T00:00:00Z',
+  match:{date:'2026-10-31',title:'演奏会',hall:'中ホール',time:'開演18:00',
+    confirmed:true,evidence_url:guidePrice.source_url,correct_fields:['time']}});
+result=merge([{...schedulePrice,time:'開演18:00',verified_fields:['time']}],[correctedGuide]);
+assert.equal(result[0].time,'開場17:30／開演19:00');
+assert.equal(result[0].official_change_history[0].checked_at,'2026-11-08T00:00:00Z');
+assert.equal(result[0].field_sources.time.source_type,'city_event_guide');
+// Weaker reports cannot reverse an already confirmed correction, even with match.correct_fields.
+const lower={...schedulePrice,match:{...correctedGuide.match,time:'開場17:30／開演19:00'}};
+assert.equal(merge(result,[lower])[0].time,result[0].time);
 
 const indexHtml = fs.readFileSync('index.html','utf8');
 assert.ok(indexHtml.includes("e.source_type==='city_event_guide'&&e.source_url"));
@@ -128,6 +141,10 @@ for (const testCase of contractCases) {
   assert.deepEqual(Array.from(contractResult, e => e.time || ''), testCase.expected.times, testCase.name);
   if (Object.hasOwn(testCase.expected, 'price')) {
     assert.equal(contractResult[0].price, testCase.expected.price, testCase.name);
+  }
+  if(Object.hasOwn(testCase.expected,'time_source')){
+    assert.equal(context.window.FORUM_EVENT_SOURCES.fieldEvidence(contractResult[0],'time').source_type,
+      testCase.expected.time_source,testCase.name);
   }
 }
 

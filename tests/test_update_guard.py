@@ -134,7 +134,7 @@ class UpdateSafetyTests(unittest.TestCase):
         official = dict(base, price="公式価格", source_type="event_official",
                         source_url="https://example.org/events/concert", source_verified=True,
                         event_specific=True, verified_fields=["price"])
-        self.assertEqual([source_rank(item, "price") for item in (x, city, official)], [1, 2, 3])
+        self.assertEqual([source_rank(item, "price") for item in (x, city, official)], [1, 2, 4])
         merged = combine_performance(x, city)
         self.assertEqual(merged["price"], "市価格")
         self.assertEqual(combine_performance(merged, official)["price"], "公式価格")
@@ -159,10 +159,10 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(event["source"], "event_guide")
         self.assertEqual(event["source_type"], "city_event_guide")
         self.assertEqual(event["source_url"], "https://www.city.inazawa.aichi.jp/ica/0000002507.html")
-        self.assertEqual(source_rank(event, "date"), 2)
-        self.assertEqual(source_rank(event, "title"), 2)
-        self.assertEqual(source_rank(event, "hall"), 2)
-        self.assertEqual(source_rank(event, "time"), 2)
+        self.assertEqual(source_rank(event, "date"), 3)
+        self.assertEqual(source_rank(event, "title"), 3)
+        self.assertEqual(source_rank(event, "hall"), 3)
+        self.assertEqual(source_rank(event, "time"), 3)
 
     def test_event_guide_parses_h2_with_labeled_h3_sections(self):
         html = """
@@ -187,7 +187,7 @@ class UpdateSafetyTests(unittest.TestCase):
         self.assertEqual(rows[0]["time"], "14:00〜")
         self.assertEqual(rows[0]["source_type"], "city_event_guide")
         self.assertNotIn("official_url", rows[0])
-        self.assertEqual(source_rank(rows[0], "time"), 2)
+        self.assertEqual(source_rank(rows[0], "time"), 3)
 
     def test_event_guide_skips_ambiguous_multiple_dates_and_performances(self):
         html = """

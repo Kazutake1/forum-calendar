@@ -29,7 +29,7 @@
   "source_groups": [
     {
       "name": "event_specific_official",
-      "rank": 3,
+      "rank": 4,
       "source_types": [
         "event_official",
         "organizer",
@@ -44,13 +44,22 @@
       ]
     },
     {
+      "name": "city_event_guide",
+      "rank": 3,
+      "source_types": [
+        "city_event_guide",
+        "event_guide"
+      ],
+      "hosts": [
+        "www.city.inazawa.aichi.jp"
+      ]
+    },
+    {
       "name": "city_official",
       "rank": 2,
       "source_types": [
         "city_schedule",
         "city_official",
-        "city_event_guide",
-        "event_guide",
         "city_event_calendar"
       ],
       "hosts": [

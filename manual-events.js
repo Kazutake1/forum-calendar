@@ -11,7 +11,8 @@
   const MERGE_FIELDS=[...POLICY.merge_fields];
   const MANUAL_SOURCE_TYPES=new Set(POLICY.manual_source_types);
   const CITY_SOURCE_TYPES=new Set(
-    (POLICY.source_groups.find(group=>group&&group.name==='city_official')||{}).source_types||[]);
+    POLICY.source_groups.filter(group=>Array.isArray(group.hosts)&&group.hosts.includes(CITY_HOST))
+      .flatMap(group=>group.source_types||[]));
   if(!CITY_SOURCE_TYPES.size)throw new Error('市公式出典ポリシーがありません');
   const SOURCE_GROUPS=POLICY.source_groups.map(group=>({...group,
     source_types:new Set(group.source_types||[]),
@@ -59,6 +60,18 @@
       return Number.isInteger(group.rank)?group.rank:0;
     }
     return 0;
+  };
+  const recordOfficialChanges = (target,previous,fields,checkedAt='') => {
+    const history=[...(target.official_change_history||previous.official_change_history||[])];
+    for(const field of fields){
+      const old=previous[field],value=target[field],proof=fieldEvidence(target,field);
+      if(!old||!value||old===value||sourceRank(target,field)<2)continue;
+      if(!history.some(x=>x.field===field&&x.previous===old&&x.official===value&&x.source_url===proof.source_url))
+        history.push({field,previous:old,official:value,source_url:proof.source_url,
+          checked_at:checkedAt||target.checked_at||new Date().toISOString()});
+      if(field==='title')target.previous_titles=[...new Set([...(target.previous_titles||previous.previous_titles||[]),old])];
+    }
+    if(history.length)target.official_change_history=history;
   };
   const venues = event => Array.isArray(event.venues) && event.venues.length
     ? event.venues : [event.hall].filter(Boolean);
@@ -149,12 +162,16 @@
              timeParts(current[field]).starts[0]===timeParts(value).starts[0]))
           throw new Error(`同順位の出典が食い違います。確認してください: ${field}`);
       }
+      recordOfficialChanges(combined,current,MERGE_FIELDS,incoming.checked_at||'');
       const t1=timeParts(current.time),t2=timeParts(incoming.time);
       if(t1.starts.length===1&&t2.starts.length===1&&t1.starts[0]===t2.starts[0]&&
          (t1.doors.length||t2.doors.length)){
-        const door=t1.doors[0]||t2.doors[0];
-        if(t1.doors.length&&t2.doors.length&&t1.doors[0]!==t2.doors[0])
-          throw new Error('開場時間が食い違います。確認してください');
+        let door=t1.doors[0]||t2.doors[0];
+        if(t1.doors.length&&t2.doors.length&&t1.doors[0]!==t2.doors[0]){
+          const a=sourceRank(current,'time'),b=sourceRank(incoming,'time');
+          if(a===b)throw new Error('開場時間が食い違います。確認してください');
+          door=b>a?t2.doors[0]:t1.doors[0];
+        }
         combined.time=`開場${door}／開演${t1.starts[0]}`;
         combined.opening_time_sources=[current,incoming].filter(e=>timeParts(e.time).doors.length).map(e=>fieldEvidence(e,'time'));
       }
@@ -162,6 +179,7 @@
     }
     return result;
   }
+  window.FORUM_EVENT_SOURCES = Object.freeze({fieldEvidence,sourceRank,timeParts,recordOfficialChanges});
   window.mergeForumEvents = merge;
   const previousLinkInfo = linkInfo;
   linkInfo = function(event) {

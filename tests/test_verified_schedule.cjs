@@ -74,6 +74,49 @@ assert.equal(officialEndWins.find(e=>e.id==='schedule-11-16').time,'14:00〜16:0
 assert.equal(officialEndWins.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
 assert.equal(records('verified_schedule.json').events.length,58);
 
+// Item-level official organizer evidence wins even if the top-level label is older.
+const organizerUrl='https://example.org/concert';
+const organizerAuto=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場12:30／開演13:00',
+  field_sources:{time:{source_type:'organizer',source_url:organizerUrl,verified:true,event_specific:true}}}:e);
+const organizerResult=ctx.window.mergeVerifiedForumSchedule(
+  ctx.window.mergeForumEvents(organizerAuto,originalManual),verified);
+const organizerConcert=organizerResult.find(e=>e.id==='schedule-11-16');
+assert.equal(organizerConcert.time,'開場12:30／開演13:00');
+assert.equal(organizerConcert.field_sources.time.source_type,'organizer');
+assert.equal(organizerConcert.source_url,organizerUrl);
+assert.equal(organizerConcert.detail_review.status,'要確認');
+assert.ok(organizerConcert.official_change_history.some(change=>change.field==='time'&&change.source_url===organizerUrl&&change.checked_at));
+
+// Stronger titles must not certify a weak time, and a later X report cannot reverse the schedule.
+for(const proof of [{source_type:'x',source_url:'https://x.com/example/status/1',verified:true},
+                    {source_type:'city_event_guide',source_url:officialGuideUrl,verified:false}]){
+  const mixed=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'13:00〜',field_sources:{time:proof}}:e);
+  const result=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(mixed,originalManual),verified);
+  assert.equal(result.find(e=>e.id==='schedule-11-16').time,'14:00-15:30');
+  assert.equal(result.find(e=>e.id==='schedule-11-16').field_sources.time.source_type,'city_schedule');
+}
+// The guide may omit an end time: keep it as separately attributed schedule supplementation.
+assert.equal(improvedConcert.time_supplement.end_time,'15:30');
+assert.equal(improvedConcert.time_supplement.source_type,'city_schedule');
+const withDoors=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場13:30／開演14:00'}:e);
+const doorsResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(withDoors,originalManual),verified);
+assert.equal(doorsResult.find(e=>e.id==='schedule-11-16').time,'開場13:30／開演14:00（終演15:30）');
+assert.equal(doorsResult.find(e=>e.id==='schedule-11-16').detail_review,undefined);
+const doorOnly=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場13:30'}:e);
+const doorOnlyResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(doorOnly,originalManual),verified);
+assert.equal(doorOnlyResult.find(e=>e.id==='schedule-11-16').time,'開場13:30／開演14:00（終演15:30）');
+assert.equal(doorOnlyResult.find(e=>e.id==='schedule-11-16').time_supplement.start_time,'14:00');
+const namedEnd=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'開場13:30／開演14:00／終演16:00'}:e);
+const namedEndResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(namedEnd,originalManual),verified);
+assert.equal(namedEndResult.find(e=>e.id==='schedule-11-16').time,'開場13:30／開演14:00／終演16:00');
+assert.equal(namedEndResult.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
+
+const changedHall=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,hall:'大ホール',venues:['大ホール']}:e);
+const hallResult=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(changedHall,originalManual),verified);
+assert.equal(hallResult.find(e=>e.id==='schedule-11-16').hall,'大ホール');
+assert.equal(hallResult.find(e=>e.id==='schedule-11-16').detail_review.status,'要確認');
+assert.deepEqual(records('verified_schedule.json'),verified);
+
 const officialMismatch = mergedManual.map(x=>x.title==='音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」'
   ? {...x,source_verified:true,source_url:'https://www.city.inazawa.aichi.jp/ica/0000002507.html'} : x);
 assert.equal(ctx.window.mergeVerifiedForumSchedule(officialMismatch,verified)

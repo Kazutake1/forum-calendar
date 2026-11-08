@@ -440,7 +440,7 @@ def reconcile_official_guide(saved, candidates, manual=(), verified=(), checked_
             # A separately verified individual artist/organizer page outranks
             # the shared city listing. Never downgrade its certified fields.
             if any(
-                source_rank(current, field) == 3
+                source_rank(current, field) > source_rank(candidate, field)
                 for field in ("date", "title", "hall", "time")
             ):
                 hold(candidate, "個別公演公式の確認済み情報を維持します", [current])
