@@ -732,20 +732,111 @@
     "date": "2026-11-01",
     "hall": "大ホール",
     "time": "17:00〜",
-    "title": "KAZUYOSHI SAITO LIVE TOUR 2026 “日常 Days”",
+    "title": "KAZUYOSHI SAITO LIVE TOUR2026\"日常 Days\"",
     "price": "8,800円・完売",
     "venues": [
       "大ホール"
+    ],
+    "source": "event_guide",
+    "source_type": "city_event_guide",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "field_sources": {
+      "title": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "hall": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "time": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      }
+    },
+    "previous_titles": [
+      "KAZUYOSHI SAITO LIVE TOUR 2026 “日常 Days”"
+    ],
+    "official_change_history": [
+      {
+        "field": "title",
+        "previous": "KAZUYOSHI SAITO LIVE TOUR 2026 “日常 Days”",
+        "official": "KAZUYOSHI SAITO LIVE TOUR2026\"日常 Days\"",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      }
     ]
   },
   {
     "date": "2026-11-05",
     "hall": "小ホール",
-    "time": "",
-    "title": "Morning Classic Vol.3",
+    "time": "10:00〜",
+    "title": "モーニングクラシックVol.3",
     "price": "1,000円",
     "venues": [
       "小ホール"
+    ],
+    "source": "event_guide",
+    "source_type": "city_event_guide",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "field_sources": {
+      "title": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "hall": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "time": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      }
+    },
+    "previous_titles": [
+      "Morning Classic Vol.3"
+    ],
+    "official_change_history": [
+      {
+        "field": "title",
+        "previous": "Morning Classic Vol.3",
+        "official": "モーニングクラシックVol.3",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      },
+      {
+        "field": "time",
+        "previous": "",
+        "official": "10:00〜",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      }
     ]
   },
   {
@@ -771,11 +862,60 @@
   {
     "date": "2026-11-15",
     "hall": "中ホール",
-    "time": "16:00〜",
-    "title": "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」",
+    "time": "14:00〜",
+    "title": "音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」",
     "price": "1,000円",
     "venues": [
       "中ホール"
+    ],
+    "source": "event_guide",
+    "source_type": "city_event_guide",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "field_sources": {
+      "title": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "hall": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "time": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      }
+    },
+    "previous_titles": [
+      "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」"
+    ],
+    "official_change_history": [
+      {
+        "field": "title",
+        "previous": "音楽家の集い Vol.113 峰岸桂子＆ルイス・サルトール「ラテンの魅力」",
+        "official": "音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      },
+      {
+        "field": "time",
+        "previous": "16:00〜",
+        "official": "14:00〜",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      }
     ]
   },
   {
@@ -786,26 +926,147 @@
     "price": "S席11,000円・A席9,000円",
     "venues": [
       "大ホール"
-    ]
+    ],
+    "source": "event_guide",
+    "source_type": "city_event_guide",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "field_sources": {
+      "title": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "hall": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "time": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      }
+    }
   },
   {
     "date": "2027-01-10",
     "hall": "中ホール",
     "time": "14:00〜",
-    "title": "音楽家の集い Vol.114 尾髙詩音里＆新庄龍馬 デュオリサイタル",
+    "title": "音楽家の集いVol.114「尾髙詩音里＆新庄龍馬デュオリサイタル」",
     "price": "1,000円",
     "venues": [
       "中ホール"
+    ],
+    "source": "event_guide",
+    "source_type": "city_event_guide",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "field_sources": {
+      "title": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "hall": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "time": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      }
+    },
+    "previous_titles": [
+      "音楽家の集い Vol.114 尾髙詩音里＆新庄龍馬 デュオリサイタル"
+    ],
+    "official_change_history": [
+      {
+        "field": "title",
+        "previous": "音楽家の集い Vol.114 尾髙詩音里＆新庄龍馬 デュオリサイタル",
+        "official": "音楽家の集いVol.114「尾髙詩音里＆新庄龍馬デュオリサイタル」",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      }
     ]
   },
   {
     "date": "2027-01-23",
     "hall": "小ホール",
-    "time": "",
-    "title": "春風亭朝枝独演会",
+    "time": "14:00〜",
+    "title": "古今亭文菊独演会",
     "price": "3,000円",
     "venues": [
       "小ホール"
+    ],
+    "source": "event_guide",
+    "source_type": "city_event_guide",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+    "source_verified": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "field_sources": {
+      "title": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "hall": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      },
+      "time": {
+        "source_type": "city_event_guide",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "verified": true,
+        "event_specific": false
+      }
+    },
+    "previous_titles": [
+      "春風亭朝枝独演会"
+    ],
+    "official_change_history": [
+      {
+        "field": "title",
+        "previous": "春風亭朝枝独演会",
+        "official": "古今亭文菊独演会",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      },
+      {
+        "field": "time",
+        "previous": "",
+        "official": "14:00〜",
+        "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+        "checked_at": "2026-11-08T04:22:24+00:00"
+      }
     ]
   },
   {
