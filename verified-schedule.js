@@ -181,6 +181,19 @@
         markConflict(e, other, '催事予定表と同一公演の可能性がありますが、同一性を確認できません。');
       }
     }
+    // The city event guide confirms doors at 13:30, while the reviewed PDF
+    // confirms 14:00-15:30. Enrich only this exact, conflict-free event.
+    // Never alter the verified_schedule.json source row or another program.
+    const latin = schedule.find(e => e.id === 'schedule-11-16');
+    if (latin && latin.date === '2026-11-15' && latin.hall === '中ホール' &&
+        !latin.detail_review && latin.time === '14:00-15:30') {
+      latin.time = '開場13:30／開演14:00（終演15:30）';
+      latin.opening_time_sources = {
+        open_time: '13:30', source_type: 'city_event_guide',
+        source_url: 'https://www.city.inazawa.aichi.jp/ica/0000002507.html',
+        verified: true
+      };
+    }
     const combined = withoutMapped.concat(schedule);
     Object.defineProperty(combined, 'reviewWarnings', {value:[...new Set(reviewWarnings)]});
     return combined;
