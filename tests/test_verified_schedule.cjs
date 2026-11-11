@@ -33,6 +33,9 @@ assert.equal(after.some(x=>x.id==='manual-20261031-meiji-zahatorte'),true);
 assert.equal(after.some(x=>x.title==='セントラル愛知交響楽団 公開講座 Part3'),true);
 assert.equal(after.filter(x=>x.date==='2026-11-19'&&x.hall==='小ホール').length,1);
 assert.equal(after.find(x=>x.id==='schedule-11-16').detail_review,undefined);
+assert.equal(after.find(x=>x.id==='schedule-11-16').time,'開場13:30／開演14:00（終演15:30）');
+assert.equal(after.find(x=>x.id==='schedule-11-16').opening_time_sources.source_type,'city_event_guide');
+assert.equal(after.filter(x=>x.date==='2026-11-15'&&x.hall==='中ホール').length,1);
 // A newer verified official listing wins, while the pinned schedule supplies
 // a missing end time and its raw source rows are never rewritten.
 const officialGuideUrl = 'https://www.city.inazawa.aichi.jp/ica/0000002507.html';
@@ -56,7 +59,7 @@ assert.equal(improved.filter(e=>e.source_confirmed===true).length,58);
 assert.equal(improved.filter(e=>e.date==='2026-11-15'&&e.hall==='中ホール').length,1);
 const improvedConcert = improved.find(e=>e.id==='schedule-11-16');
 assert.equal(improvedConcert.title, '音楽家の集いVol.113「ラテンの魅力 峰岸桂子＆ルイス・サルトール」');
-assert.equal(improvedConcert.time,'14:00-15:30');
+assert.equal(improvedConcert.time,'開場13:30／開演14:00（終演15:30）');
 assert.equal(improvedConcert.source_type,'city_event_guide');
 assert.equal(improvedConcert.official_guide_evidence_url,officialGuideUrl);
 assert.equal(improvedConcert.detail_review,undefined);
@@ -97,7 +100,7 @@ for(const proof of [{source_type:'x',source_url:'https://x.com/example/status/1'
                     {source_type:'city_event_guide',source_url:officialGuideUrl,verified:false}]){
   const mixed=improvedAuto.map(e=>e.date==='2026-11-15'?{...e,time:'13:00〜',field_sources:{time:proof}}:e);
   const result=ctx.window.mergeVerifiedForumSchedule(ctx.window.mergeForumEvents(mixed,originalManual),verified);
-  assert.equal(result.find(e=>e.id==='schedule-11-16').time,'14:00-15:30');
+  assert.equal(result.find(e=>e.id==='schedule-11-16').time,'開場13:30／開演14:00（終演15:30）');
   assert.equal(result.find(e=>e.id==='schedule-11-16').field_sources.time.source_type,'city_schedule');
 }
 // The guide may omit an end time: keep it as separately attributed schedule supplementation.
