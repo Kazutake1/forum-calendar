@@ -1,10 +1,10 @@
 {
   "status": "ok",
-  "updated_at": "2026-11-13T02:38:24+00:00",
-  "updated_at_jst": "2026/11/13 11:38",
-  "last_successful_source_at": "2026-11-13T02:38:24+00:00",
-  "last_successful_forum_at": "2026-11-13T02:38:24+00:00",
-  "last_successful_park_at": "2026-11-13T02:38:24+00:00",
+  "updated_at": "2026-11-14T02:27:24+00:00",
+  "updated_at_jst": "2026/11/14 11:28",
+  "last_successful_source_at": "2026-11-14T02:27:24+00:00",
+  "last_successful_forum_at": "2026-11-14T02:27:24+00:00",
+  "last_successful_park_at": "2026-11-14T02:27:24+00:00",
   "event_count": 79,
   "schedule_replaced": false,
   "guide_review_candidates": [],
@@ -14,7 +14,7 @@
     "公式イベント案内: 安全に採用した4件",
     "照合済みの月は予定表OCRで上書きしません: 2026-10, 2026-11（予定表PDF更新のため要再確認）",
     "文化の丘公園（市公式） 0件 / カレンダー13ページ確認",
-    "文化の丘公園（観光協会） 0件 / 0ページ確認",
+    "文化の丘公園（観光協会） 0件 / 3ページ確認",
     "JR東海さわやかウォーキング取得失敗: JR東海公式Webに稲沢駅スタートの公開コースなし（既存JRデータ維持）"
   ],
   "resolved_urls": {
