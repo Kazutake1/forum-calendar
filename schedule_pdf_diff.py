@@ -5,6 +5,7 @@ Only separately verified official event data can authorize an event correction.
 """
 import hashlib
 import json
+import re
 from pathlib import Path
 import fitz
 
@@ -83,15 +84,36 @@ def _digest(cells):
     total=hashlib.sha256(joined.encode("ascii")).hexdigest()[:16]
     return total+cells["title"][:16]+cells["time"][:16]+cells["date"][:16]+cells["hall"][:16]
 
-def _ids():
-    return ([f"schedule-10-{i:02d}" for i in range(1,29)]
-            +[f"schedule-11-{i:02d}" for i in range(1,31)])
+def _rows_in_pdf_order(verified):
+    rows = verified.get("events")
+    if not isinstance(rows, list):
+        raise UnsafeScheduleLayout("確認済みの予定表が不正です")
+    by_position = {}
+    ids = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            raise UnsafeScheduleLayout("確認済みの予定表が不正です")
+        match = re.fullmatch(r"PDF page 1, month (10|11), row ([1-9][0-9]*)",
+                             str(row.get("source_row", "")))
+        event_id = row.get("id")
+        if not match or not isinstance(event_id, str) or event_id in ids:
+            raise UnsafeScheduleLayout("PDF行の対応を一意に確認できません")
+        month, pos = map(int, match.groups())
+        key = month, pos
+        if (pos > EXPECTED_MONTH_ROWS[month - 10] or key in by_position or
+                not re.fullmatch(rf"schedule-{month}-[0-9]{{2}}", event_id) or
+                not str(row.get("date", "")).startswith(f"2026-{month}-")):
+            raise UnsafeScheduleLayout("PDF行の対応を一意に確認できません")
+        by_position[key] = row
+        ids.add(event_id)
+    if len(by_position) != sum(EXPECTED_MONTH_ROWS):
+        raise UnsafeScheduleLayout("全58行の対応が失われました")
+    return [by_position[key] for key in sorted(by_position)]
+
 
 def build_baseline(pdf,verified):
     """Offline authoring after visually checking a published PDF; not the daily path."""
-    rows=verified.get("events") or []
-    if [x.get("id") for x in rows] != _ids():
-        raise UnsafeScheduleLayout("確認済みの58行が一致しません")
+    _rows_in_pdf_order(verified)
     pdfsha=hashlib.sha256(pdf).hexdigest()
     if pdfsha != verified.get("source_pdf_sha256"):
         raise UnsafeScheduleLayout("原本PDFのSHA-256が一致しません")
@@ -101,11 +123,10 @@ def build_baseline(pdf,verified):
 
 def compare(pdf,verified,baseline):
     """Report changed positions only. Never edits an event or infers new values."""
-    rows=verified.get("events") or []
+    rows=_rows_in_pdf_order(verified)
     refs=baseline.get("row_digests")
     prior=verified.get("source_pdf_sha256")
-    if ([x.get("id") for x in rows] != _ids()
-        or baseline.get("schema_version") != 1
+    if (baseline.get("schema_version") != 1
         or baseline.get("source_pdf_sha256") != prior
         or baseline.get("reference_size") != list(SIZE)
         or baseline.get("render_dpi") != DPI
