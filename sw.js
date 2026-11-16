@@ -1,9 +1,9 @@
-const CACHE='forum-calendar-v9-3-7-r4';
+const CACHE='forum-calendar-v9-3-7-r5';
 const AUTO_DATA='./events.json';
 const POLICY_DATA='./event-policy.json';
 const MANUAL_DATA='./manual_events.json';
 const VERIFIED_DATA='./verified_schedule.json';
-const VERIFIED_SHA='c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8';
+const VERIFIED_SHA='78814855cb140f4d5fda740966838e5854dcb23212bbd838f3a0463e86c56e1b';
 const STATIC=['./','./index.html','./manifest.json','./icon-180.png','./icon-192.png','./icon-512.png','./manual-events.js','./verified-schedule.js'];
 const PRECACHE_DATA=[AUTO_DATA,POLICY_DATA,MANUAL_DATA,VERIFIED_DATA];
 const DATA_PATHS=['/update-meta.json'];

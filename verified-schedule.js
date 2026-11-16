@@ -8,8 +8,8 @@
   const SOURCES=window.FORUM_EVENT_SOURCES;
   if(!SOURCES)throw new Error('共通の出典判定を読み込めません');
   const {fieldEvidence,sourceRank,timeParts,recordOfficialChanges}=SOURCES;
-  const pdf = 'https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/2026.10-11.pdf';
-  const sha = 'c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8';
+  const pdf = 'https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/event26_1011.pdf';
+  const sha = '78814855cb140f4d5fda740966838e5854dcb23212bbd838f3a0463e86c56e1b';
   // Each mapping is an individually reviewed identity, not a fuzzy title match.
   const auto = {
     'schedule-10-02': 'セントラル愛知交響楽団 第16回名曲コンサート “The Musical”',
