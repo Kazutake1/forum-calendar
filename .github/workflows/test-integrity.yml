@@ -27,24 +27,6 @@ jobs:
           node --version
           test "$(node --version)" = "v22.23.4"
       - run: pip install -r requirements.txt
-      - name: Temporary read-only live PDF fingerprint parity (PR 68 only)
-        if: github.event_name == 'pull_request' && github.head_ref == 'feat/verified-pdf-row-diff'
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from update_events import get
-          import schedule_pdf_diff as d
-          approved=json.loads(Path("verified_schedule.json").read_text(encoding="utf-8"))
-          baseline=json.loads(Path(".github/schedule_pdf_baseline.json").read_text(encoding="utf-8"))
-          url=approved["events"][0]["source_url"]
-          pdf=get(url).content
-          print("LIVE_PDF_SHA",d.hashlib.sha256(pdf).hexdigest(),flush=True)
-          actual=[d._digest(r) for r in d._fingerprints(pdf)]
-          assert actual==baseline["row_digests"],"CI's PDF renderer differs from the approved row baseline"
-          assert d.compare(pdf,approved,baseline)["status"]=="unchanged"
-          print("LIVE_PDF_FINGERPRINT_PARITY PASS 58/58",flush=True)
-          PY
       - name: Python data, identity, and archival regression tests
         run: python -m unittest discover -s tests -v
       - name: Browser manual merge regression tests
