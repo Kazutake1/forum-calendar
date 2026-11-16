@@ -140,5 +140,5 @@ def compare(pdf,verified,baseline):
 
 def compare_against_pinned(pdf,root=ROOT):
     verified=json.loads((root/"verified_schedule.json").read_text(encoding="utf-8"))
-    baseline=json.loads((root/"schedule_pdf_baseline.json").read_text(encoding="utf-8"))
+    baseline=json.loads((root/".github"/"schedule_pdf_baseline.json").read_text(encoding="utf-8"))
     return compare(pdf,verified,baseline)
