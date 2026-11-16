@@ -644,6 +644,7 @@ def main():
             notes.append(f"公式イベント案内: 安全に採用した{len(guide)}件")
         else: notes.append("公式イベント案内: 確実に統合できる構造化イベント0件")
     except Exception as e: notes.append(f"公式イベント案内取得失敗: {clean(e,180)}")
+    schedule_pdf_review=None
     try:
         label,pdf_url=find_schedule_pdf(schedule_page); pdf=get(pdf_url).content; year,months=infer_year_months(label,pdf_url)
         target_yms={f"{year:04d}-{m:02d}" for m in months}
@@ -654,7 +655,38 @@ def main():
             changed=hashlib.sha256(pdf).hexdigest()!=expected_sha
             notes.append("照合済みの月は予定表OCRで上書きしません: "+", ".join(sorted(protected))+
                          ("（予定表PDF更新のため要再確認）" if changed else ""))
-            if not changed: source_success=True; forum_success=True
+            if changed:
+                # The reference PDF has image-only content. Report precisely
+                # which verified rows/cells changed; do not turn pixels or OCR
+                # into an unverified event correction.
+                try:
+                    from schedule_pdf_diff import compare_against_pinned
+                    schedule_pdf_review=compare_against_pinned(pdf)
+                    schedule_pdf_review["source_url"]=pdf_url
+                    if schedule_pdf_review["status"]=="rows_changed":
+                        notes.append(
+                            "催事予定表の画像比較: 変更候補"+
+                            str(schedule_pdf_review["changed_count"])+
+                            "行（update-meta.json の schedule_pdf_review を参照）")
+                    elif schedule_pdf_review["status"]=="pdf_changed_no_row_changes":
+                        notes.append("催事予定表の画像比較: 登録済み58行の表示に変化なし")
+                    else:
+                        notes.append("催事予定表の画像比較: レイアウト変更のため全件保留")
+                except Exception as e:
+                    schedule_pdf_review={
+                        "status":"layout_review",
+                        "reason":clean(e,160),
+                        "source_url":pdf_url,
+                        "baseline_sha256":expected_sha,
+                        "current_sha256":hashlib.sha256(pdf).hexdigest()
+                    }
+                    notes.append("催事予定表の画像比較: 安全に照合できず、58件を保持")
+            else:
+                schedule_pdf_review={"status":"unchanged","source_url":pdf_url,
+                                     "baseline_sha256":expected_sha,
+                                     "current_sha256":expected_sha,
+                                     "changed_count":0,"changed_rows":[]}
+                source_success=True;forum_success=True
         if target_yms:
             notes.append("催事予定表OCRは無効です。未照合月は既存データを維持: "+", ".join(sorted(target_yms)))
     except Exception as e: notes.append(f"催事予定表確認失敗: {clean(e,180)}")
@@ -685,7 +717,7 @@ def main():
     merged=dedupe(base)
     if not merged: merged=old
     last_success=run_at if source_success else old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_forum=run_at if forum_success else old_meta.get("last_successful_forum_at") or old_meta.get("last_successful_source_at") or old_meta.get("updated_at") or ""; last_park=run_at if park_success else old_meta.get("last_successful_park_at") or ""; status="ok" if forum_success else ("partial" if source_success else "fallback")
-    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"guide_review_candidates":guide_reviews,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
+    EVENTS_FILE.write_text(json.dumps(merged,ensure_ascii=False,indent=2),encoding="utf-8"); jst=timezone(timedelta(hours=9)); META_FILE.write_text(json.dumps({"status":status,"updated_at":run_at,"updated_at_jst":datetime.now(jst).strftime("%Y/%m/%d %H:%M"),"last_successful_source_at":last_success,"last_successful_forum_at":last_forum,"last_successful_park_at":last_park,"event_count":len(merged),"schedule_replaced":schedule_trusted,"guide_review_candidates":guide_reviews,"schedule_pdf_review":schedule_pdf_review,"notes":notes,"resolved_urls":{"events":event_guide,"schedule":schedule_page},"sources":[schedule_page,event_guide,"https://www.city.inazawa.aichi.jp/event2d/event_list.php?ev=2","https://www.inazawa-kankou.jp/archives/category/event",JR_WALK_HOME]},ensure_ascii=False,indent=2),encoding="utf-8"); print("\n".join(notes)); print(f"events: {len(old)} -> {len(merged)}; status={status}")
 
 if __name__=="__main__":
     raise SystemExit("update_events.py の直接実行は無効です。update_events_no_ocr.py を使用してください。")
