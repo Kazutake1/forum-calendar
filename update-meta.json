@@ -1,18 +1,26 @@
 {
   "status": "ok",
-  "updated_at": "2026-11-16T02:10:30+00:00",
-  "updated_at_jst": "2026/11/16 11:10",
-  "last_successful_source_at": "2026-11-16T02:10:30+00:00",
-  "last_successful_forum_at": "2026-11-16T02:10:30+00:00",
-  "last_successful_park_at": "2026-11-16T02:10:30+00:00",
+  "updated_at": "2026-11-17T04:29:52+00:00",
+  "updated_at_jst": "2026/11/17 13:30",
+  "last_successful_source_at": "2026-11-17T04:29:52+00:00",
+  "last_successful_forum_at": "2026-11-17T04:29:52+00:00",
+  "last_successful_park_at": "2026-11-17T04:29:52+00:00",
   "event_count": 79,
   "schedule_replaced": false,
   "guide_review_candidates": [],
+  "schedule_pdf_review": {
+    "status": "unchanged",
+    "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/event26_1011.pdf",
+    "baseline_sha256": "78814855cb140f4d5fda740966838e5854dcb23212bbd838f3a0463e86c56e1b",
+    "current_sha256": "78814855cb140f4d5fda740966838e5854dcb23212bbd838f3a0463e86c56e1b",
+    "changed_count": 0,
+    "changed_rows": []
+  },
   "notes": [
     "イベント案内URL: fixed https://www.city.inazawa.aichi.jp/ica/0000002507.html",
     "催事予定表URL: fixed https://www.city.inazawa.aichi.jp/ica/0000004875.html",
     "公式イベント案内: 安全に採用した4件",
-    "照合済みの月は予定表OCRで上書きしません: 2026-10, 2026-11（予定表PDF更新のため要再確認）",
+    "照合済みの月は予定表OCRで上書きしません: 2026-10, 2026-11",
     "文化の丘公園（市公式） 0件 / カレンダー13ページ確認",
     "文化の丘公園（観光協会） 0件 / 0ページ確認",
     "JR東海さわやかウォーキング取得失敗: JR東海公式Webに稲沢駅スタートの公開コースなし（既存JRデータ維持）"
