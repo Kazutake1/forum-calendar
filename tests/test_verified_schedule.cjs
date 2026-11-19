@@ -199,3 +199,53 @@ const inject = {...lecture, detail_review:{status:'要確認',note:'<script>aler
 assert.ok(!vm.runInContext('detailsHTML(events)',Object.assign(view,{events:[inject]})).includes('<script>'));
 assert.ok(vm.runInContext('detailsHTML(events)',view).includes('&lt;script&gt;'));
 console.log('PASS: verified 58, mapped 10, row-local review, original inputs preserved, fail-closed data checks');
+// Regression: a previously active SW can serve the old PDF schedule from its
+// cache after the official source switches SHA. Updating the SW and retrying
+// must recover without deleting or rewriting any event records.
+async function checkStaleWorkerRecovery() {
+  const oldPdf={...verified,source_pdf_sha256:'c67f4dbc16e38becd24dfee2cd651b3d6ff871f577506b00b35075f9d46825d8'};
+  const status={textContent:'',classList:{add(){}}};
+  const originalRows=JSON.stringify(originalAuto);
+  const originalVerified=JSON.stringify(verified);
+  let calls=0,refreshes=0;
+  const listeners=new Set();
+  const sw={controller:{version:4},
+    getRegistration:async()=>({update:async()=>{
+      refreshes++;
+      sw.controller={version:6};
+      for(const callback of [...listeners])callback();
+    }}),
+    addEventListener:(event,callback)=>{if(event==='controllerchange')listeners.add(callback);},
+    removeEventListener:(event,callback)=>{if(event==='controllerchange')listeners.delete(callback);}
+  };
+  ctx.navigator={serviceWorker:sw};
+  ctx.setTimeout=setTimeout;ctx.clearTimeout=clearTimeout;
+  ctx.document={querySelector:()=>status};
+  ctx.window.applyForumEventOverlay=transform=>transform(mergedManual);
+  ctx.fetch=async()=>{
+    calls++;
+    return {ok:true,status:200,headers:{get:()=>calls===1?'stale':null},
+      json:async()=>calls===1?oldPdf:verified};
+  };
+  await ctx.window.loadVerifiedForumSchedule();
+  assert.equal(refreshes,1,'Service Worker must update once');
+  assert.equal(calls,2,'Mismatched cached PDF must be fetched again once');
+  assert.equal(status.textContent,'','Recovered PDF must not show a load failure');
+  assert.equal(JSON.stringify(originalAuto),originalRows);
+  assert.equal(JSON.stringify(verified),originalVerified);
+
+  calls=0;
+  status.textContent='';
+  ctx.navigator={serviceWorker:{controller:null}};
+  ctx.fetch=async()=>{calls++;return {ok:true,status:200,headers:{get:()=> 'stale'},json:async()=>oldPdf};};
+  await ctx.window.loadVerifiedForumSchedule();
+  assert.equal(calls,2,'Unrepairable stale PDF gets only one retry');
+  assert.ok(status.textContent.includes('確認済み予定表の読込失敗'));
+  assert.ok(status.textContent.includes('古い予定表キャッシュ'));
+  assert.equal(JSON.stringify(verified),originalVerified);
+}
+checkStaleWorkerRecovery().then(
+  ()=>console.log('PASS: stale Service Worker schedule recovery and fail-closed fallback'),
+  error=>{console.error(error);process.exitCode=1;}
+);
+

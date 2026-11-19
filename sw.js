@@ -1,4 +1,4 @@
-const CACHE='forum-calendar-v9-3-7-r5';
+const CACHE='forum-calendar-v9-3-7-r6';
 const AUTO_DATA='./events.json';
 const POLICY_DATA='./event-policy.json';
 const MANUAL_DATA='./manual_events.json';

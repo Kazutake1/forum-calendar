@@ -222,14 +222,54 @@
     return combined;
   }
   window.mergeVerifiedForumSchedule = mergeVerifiedSchedule;
+  // Old cached workers validate against an older PDF SHA and may serve an old
+  // verified_schedule.json after the published 58-row baseline has changed.
+  // Update the worker once, then fetch the current approved schedule again.
+  async function refreshVerifiedWorker() {
+    if (typeof navigator === 'undefined' || !navigator.serviceWorker ||
+        !navigator.serviceWorker.controller) return false;
+    const serviceWorker = navigator.serviceWorker;
+    const registration = await serviceWorker.getRegistration();
+    if (!registration) return false;
+    const previous = serviceWorker.controller;
+    const changed = new Promise(resolve => {
+      let timer;
+      const done = value => {
+        clearTimeout(timer);
+        serviceWorker.removeEventListener('controllerchange', listener);
+        resolve(value);
+      };
+      const listener = () => done(true);
+      timer = setTimeout(() => done(false), 2500);
+      serviceWorker.addEventListener('controllerchange', listener);
+    });
+    try { await registration.update(); }
+    catch (error) {
+      console.warn('旧Service Workerの更新に失敗しました', error);
+      return false;
+    }
+    if (serviceWorker.controller !== previous) return true;
+    return changed;
+  }
   window.loadVerifiedForumSchedule = async () => {
     const status = document.querySelector('#autoUpdated');
     try {
-      const response = await fetch('./verified_schedule.json?ts=' + Date.now(), {cache:'no-store'});
+      let response = await fetch('./verified_schedule.json?ts=' + Date.now(), {cache:'no-store'});
       if (!response.ok) throw new Error('HTTP ' + response.status);
-      const usingCache = response.headers && response.headers.get &&
-        response.headers.get('X-Forum-Verified-Cache') === 'stale';
-      const verified = await response.json();
+      let usingCache = Boolean(response.headers && response.headers.get &&
+        response.headers.get('X-Forum-Verified-Cache') === 'stale');
+      let verified = await response.json();
+      if (verified.source_pdf_sha256 !== sha) {
+        await refreshVerifiedWorker();
+        // Retry once only. Never apply mismatched or unverified schedule rows.
+        response = await fetch('./verified_schedule.json?ts=' + Date.now() + '-retry', {cache:'no-store'});
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        usingCache = Boolean(response.headers && response.headers.get &&
+          response.headers.get('X-Forum-Verified-Cache') === 'stale');
+        verified = await response.json();
+        if (verified.source_pdf_sha256 !== sha)
+          throw new Error('古い予定表キャッシュを取得しました。ページを再読み込みしてください');
+      }
       const merged = window.applyForumEventOverlay(current => mergeVerifiedSchedule(current, verified));
       if (merged.reviewWarnings.length && status) {
         status.classList.add('stale');
@@ -243,7 +283,7 @@
       console.error('原画像照合済み予定表の取り込みに失敗しました', error);
       if (status) {
         status.classList.add('stale');
-        status.textContent += ' ・ 確認済み予定表の読込失敗';
+        status.textContent += ' ・ 確認済み予定表の読込失敗（' + String(error?.message || '原因不明').slice(0,100) + '）';
       }
     }
   };
