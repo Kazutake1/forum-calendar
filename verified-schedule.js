@@ -194,6 +194,29 @@
         verified: true
       };
     }
+    // The checked city schedule remains canonical for event identity and start time.
+    // Ticket listing confirms doors at 17:45; the matching price is from a
+    // separately attributed concert listing, not from the city PDF.
+    const cocco = schedule.find(e => e.id === 'schedule-11-29');
+    if (cocco && cocco.date === '2026-11-27' &&
+        cocco.hall === '小ホール' &&
+        cocco.title === 'Cocco jimayaki全国巡回展示ツアー2026 ～Cocco New Album「ハナウムイ」と共に～' &&
+        cocco.time === '18:30-' && !cocco.detail_review) {
+      cocco.time = '開場17:45／開演18:30';
+      cocco.time_supplement = {
+        open_time: '17:45', source_type: 'other',
+        source_url: 'https://eplus.jp/sf/detail/0158190001-P0030114P021001?P6=001',
+        verified: true
+      };
+      cocco.price = '全席指定6,000円（税込）';
+      cocco.price_evidence = {
+        source_type: 'other',
+        source_url: 'https://sonicon.jp/events/148d2df9-d8c2-4d39-bd9e-5de6a51df32c',
+        verified: true
+      };
+      cocco.detail_price_confirmed = true;
+      cocco.ticket_info_url = 'https://eplus.jp/sf/detail/0158190001-P0030114P021001?P6=001';
+    }
     const combined = withoutMapped.concat(schedule);
     Object.defineProperty(combined, 'reviewWarnings', {value:[...new Set(reviewWarnings)]});
     return combined;
