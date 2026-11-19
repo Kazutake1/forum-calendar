@@ -345,11 +345,11 @@ loadAutoData().then(async () => {
     return;
   }
   const script = document.createElement('script');
-  script.src = './manual-events.js?v=937';
+  script.src = './manual-events.js?v=937-r6';
   script.onload = async () => {
     await window.loadManualForumEvents();
     const verified = document.createElement('script');
-    verified.src = './verified-schedule.js?v=937';
+    verified.src = './verified-schedule.js?v=937-r6';
     verified.onload = () => window.loadVerifiedForumSchedule();
     verified.onerror = () => {
       const status = document.querySelector('#autoUpdated');
@@ -367,7 +367,7 @@ loadAutoData().then(async () => {
   document.body.appendChild(script);
 });
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js?v=937',{updateViaCache:'none'});
+  navigator.serviceWorker.register('./sw.js?v=937-r6',{updateViaCache:'none'});
 }
 </script>
 </body></html>
