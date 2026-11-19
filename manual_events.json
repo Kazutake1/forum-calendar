@@ -79,5 +79,56 @@
     "hall_source_type": "promoter",
     "hall_source_url": "https://www.sundayfolk.com/artist/000174",
     "source_note": "開催日・開場開演・料金はツアー公式サイト、ホール区分はサンデーフォークの公演案内で確認。市公式サイト確認済みとは扱わない。"
+  },
+  {
+    "id": "manual-20270117-ochiai-mori-talkshow",
+    "date": "2027-01-17",
+    "title": "落合博満×森繁和 プロ野球トークショー2027",
+    "hall": "大ホール",
+    "venues": [
+      "大ホール"
+    ],
+    "time": "開場12:00／開演13:00",
+    "price": "全席指定11,000円／アンダー19割5,500円",
+    "source_type": "promoter",
+    "source_url": "https://most-planning.com/topicks/%E8%90%BD%E5%90%88%E5%8D%9A%E6%BA%80x%E6%A3%AE%E7%B9%81%E5%92%8C/",
+    "source_verified": true,
+    "event_specific": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "price_source_type": "other",
+    "price_source_url": "https://lp.p.pia.jp/event/leisure/514472/index.html",
+    "price_source_verified": true,
+    "detail_price_confirmed": true,
+    "x_source_url": "https://x.com/1496official/status/2119488084224172306",
+    "source_note": "公演制作側MOST PLANNINGの個別案内で開催日・大ホール・開場12:00・開演13:00を確認。チケットぴあで全席指定11,000円、アンダー19割5,500円と出演者（落合博満、森繁和、岩瀬仁紀、森野将彦、浅尾拓也）を確認。料金をMOST PLANNING確認済みと扱わない。"
+  },
+  {
+    "id": "manual-20270228-vorlesen-inazawa",
+    "date": "2027-02-28",
+    "title": "声優朗読劇フォアレーゼン ～おらが村の交響曲～",
+    "hall": "中ホール",
+    "venues": [
+      "中ホール"
+    ],
+    "time": "第1公演 開場14:00／開演14:30　第2公演 開場17:00／開演17:30",
+    "price": "",
+    "source_type": "organizer",
+    "source_url": "https://vorlesen.tstar.jp/",
+    "source_verified": true,
+    "event_specific": true,
+    "verified_fields": [
+      "date",
+      "title",
+      "hall",
+      "time"
+    ],
+    "x_source_url": "https://x.com/vorlesen_info/status/2122887530567569504",
+    "performance_count": 2,
+    "source_note": "公式チケットサイトに稲沢中ホール2公演（14:30／17:30）を個別掲載。各開場（14:00／17:00）は主催者公式X告知画像で確認。出演：堀内賢雄、山中真尋、寺島惇太、宇田川かいと。料金・終演時刻は未確認。同一作品の同日2回公演として1イベントにまとめて表示し、別々のイベントを生成しない。"
   }
 ]
