@@ -1,13 +1,44 @@
 {
   "status": "ok",
-  "updated_at": "2026-11-26T04:10:06+00:00",
-  "updated_at_jst": "2026/11/26 13:11",
-  "last_successful_source_at": "2026-11-26T04:10:06+00:00",
-  "last_successful_forum_at": "2026-11-26T04:10:06+00:00",
-  "last_successful_park_at": "2026-11-26T04:10:06+00:00",
+  "updated_at": "2026-11-27T04:15:48+00:00",
+  "updated_at_jst": "2026/11/27 13:16",
+  "last_successful_source_at": "2026-11-27T04:15:48+00:00",
+  "last_successful_forum_at": "2026-11-27T04:15:48+00:00",
+  "last_successful_park_at": "2026-11-27T04:15:48+00:00",
   "event_count": 79,
   "schedule_replaced": false,
-  "guide_review_candidates": [],
+  "guide_review_candidates": [
+    {
+      "date": "2027-02-27",
+      "hall": "中ホール",
+      "title": "音楽家の集い2026「モーツァルト レクイエムニ短調K.626」",
+      "time": "14:00〜",
+      "reason": "既存情報との同一公演を特定できません",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+      "existing": [
+        {
+          "title": "音楽家の集い Vol.115 パクスコーラス モーツァルト／レクイエム",
+          "time": "14:00〜"
+        }
+      ],
+      "checked_at": "2026-11-27T04:15:48+00:00"
+    },
+    {
+      "date": "2027-03-22",
+      "hall": "大ホール",
+      "title": "ワンコインコンサートスペシャル「音楽三昧」～ドイツ編～",
+      "time": "14:00〜",
+      "reason": "既存情報との同一公演を特定できません",
+      "source_url": "https://www.city.inazawa.aichi.jp/ica/0000002507.html",
+      "existing": [
+        {
+          "title": "ワンコインコンサートスペシャル 音楽三昧「ドイツ編」",
+          "time": ""
+        }
+      ],
+      "checked_at": "2026-11-27T04:15:48+00:00"
+    }
+  ],
   "schedule_pdf_review": {
     "status": "unchanged",
     "source_url": "https://www.city.inazawa.aichi.jp/ica/cmsfiles/contents/0000004/4875/event26_1011.pdf",
@@ -19,10 +50,11 @@
   "notes": [
     "イベント案内URL: fixed https://www.city.inazawa.aichi.jp/ica/0000002507.html",
     "催事予定表URL: fixed https://www.city.inazawa.aichi.jp/ica/0000004875.html",
+    "公式イベント案内: 同一性未確認の2件を保留（詳細はguide_review_candidates）",
     "公式イベント案内: 安全に採用した3件",
     "照合済みの月は予定表OCRで上書きしません: 2026-10, 2026-11",
     "文化の丘公園（市公式） 0件 / カレンダー13ページ確認",
-    "文化の丘公園（観光協会） 0件 / 3ページ確認",
+    "文化の丘公園（観光協会） 0件 / 0ページ確認",
     "JR東海さわやかウォーキング取得失敗: JR東海公式Webに稲沢駅スタートの公開コースなし（既存JRデータ維持）"
   ],
   "resolved_urls": {
